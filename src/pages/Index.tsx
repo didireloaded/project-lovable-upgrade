@@ -1,4 +1,6 @@
-import { useDriveLink } from "@/hooks/useDriveLink";
+import { useStore } from "@/store";
+import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
 import { BottomNav } from "@/components/drivelink/BottomNav";
 import { DriveToast } from "@/components/drivelink/Toast";
 import { HomeView } from "@/components/drivelink/HomeView";
@@ -8,7 +10,16 @@ import { WeatherView } from "@/components/drivelink/WeatherView";
 import { HelpView } from "@/components/drivelink/HelpView";
 
 const Index = () => {
-  const dl = useDriveLink();
+  const activeView = useStore((s) => s.currentView);
+  const showNotification = useStore((s) => s.showNotification);
+  const { signOut } = useAuth();
+
+  // Sync profile from DB
+  useProfile();
+
+  const handleSOS = () => {
+    showNotification("SOS activated! Emergency services notified.", "error");
+  };
 
   return (
     <div className="min-h-screen flex items-start justify-center py-10 px-5 relative">
@@ -22,8 +33,14 @@ const Index = () => {
             Drive<span className="text-secondary">Link</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-2 tracking-wider">
-            Mobile UI Preview · React + Tailwind · Vite · shadcn/ui
+            Crowdsourced Road Intelligence for Namibian Drivers
           </p>
+          <button
+            onClick={signOut}
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground bg-transparent border border-foreground/10 rounded-full px-3 py-1 cursor-pointer transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
 
         {/* Phone frame */}
@@ -39,42 +56,31 @@ const Index = () => {
 
             {/* Screen */}
             <div className="flex-1 overflow-hidden flex flex-col relative">
-              <DriveToast toast={dl.toast} />
+              <DriveToast />
 
-              {dl.activeView === "home" && (
-                <HomeView
-                  score={dl.score}
-                  speed={dl.speed}
-                  speedStatus={dl.speedStatus}
-                  reportsToday={dl.reportsToday}
-                  voiceActive={dl.voiceActive}
-                  onToggleVoice={dl.toggleVoice}
-                  onReport={dl.reportAlert}
-                  activities={dl.activities}
-                />
-              )}
-              {dl.activeView === "dm" && <MessagesView onShowToast={dl.showToast} />}
-              {dl.activeView === "news" && <NewsView />}
-              {dl.activeView === "weather" && <WeatherView />}
-              {dl.activeView === "help" && <HelpView onSOS={dl.activateSOS} onShowToast={dl.showToast} />}
+              {activeView === "home" && <HomeView />}
+              {activeView === "dm" && <MessagesView />}
+              {activeView === "news" && <NewsView />}
+              {activeView === "weather" && <WeatherView />}
+              {activeView === "help" && <HelpView />}
 
               {/* FAB */}
               <button
-                onClick={dl.activateSOS}
+                onClick={handleSOS}
                 className="absolute bottom-[90px] right-4 w-12 h-12 rounded-full bg-gradient-to-br from-destructive to-destructive/60 border-none flex items-center justify-center text-xl z-40 cursor-pointer hover:scale-110 transition-transform"
                 style={{ animation: "fab-pulse 3s infinite" }}
               >
                 🆘
               </button>
 
-              <BottomNav active={dl.activeView} onSwitch={dl.switchView} hasDmNotif={dl.hasDmNotif} />
+              <BottomNav />
             </div>
           </div>
         </div>
 
         {/* Info strip */}
         <div className="flex gap-4 flex-wrap justify-center max-w-[375px]">
-          {["⚡ Vite + React", "🎨 Tailwind + shadcn/ui", "📍 Mapbox integration", "🔴 Live activity simulation", "🎙 Voice chat rooms", "🤖 AI assistant"].map((pill) => (
+          {["⚡ Real-time reports", "🔐 Auth + Cloud DB", "📍 Crowdsourced alerts", "🔴 Live activity feed", "🎙 Voice chat rooms", "🤖 AI assistant"].map((pill) => (
             <div key={pill} className="bg-foreground/5 border border-panel-border rounded-full px-3.5 py-1.5 text-[0.7rem] text-muted-foreground flex items-center gap-1.5">
               {pill}
             </div>
