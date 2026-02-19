@@ -1,6 +1,4 @@
-interface Props {
-  onShowToast: (msg: string, type?: "success" | "warn") => void;
-}
+import { useStore } from "@/store";
 
 const channels = [
   { name: "Windhoek Drivers", msg: "Alex: Roadblock on B6, avoid!", icon: "🗺", gradient: "from-primary to-primary/70", time: "2m", badge: 3, online: true },
@@ -9,7 +7,9 @@ const channels = [
   { name: "Police Scanner", msg: "All clear on B1 highway", icon: "👮", gradient: "from-purple to-purple/70", time: "2h", online: true },
 ];
 
-export function MessagesView({ onShowToast }: Props) {
+export function MessagesView() {
+  const showNotification = useStore((s) => s.showNotification);
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 pt-10 pb-3 flex-shrink-0 bg-gradient-to-b from-background to-transparent">
@@ -62,7 +62,7 @@ export function MessagesView({ onShowToast }: Props) {
                   <div className="text-[0.62rem] text-muted-foreground mt-0.5">{room.listeners} listeners{room.live ? " · Live" : ""}</div>
                 </div>
                 <button
-                  onClick={() => onShowToast("Joined voice chat")}
+                  onClick={() => showNotification("Joined voice chat", "success")}
                   className={`rounded-lg px-3 py-1 text-[0.65rem] border-none cursor-pointer font-body ${
                     room.color === "success" ? "bg-success/20 text-success" : "bg-primary/20 text-primary"
                   }`}

@@ -1,7 +1,7 @@
-import { type ViewTab } from "@/hooks/useDriveLink";
+import { useStore, type ViewType } from "@/store";
 import { motion } from "framer-motion";
 
-const tabs: { id: ViewTab; icon: string; label: string; activeColor: string }[] = [
+const tabs: { id: ViewType; icon: string; label: string; activeColor: string }[] = [
   { id: "home", icon: "🏠", label: "Drive", activeColor: "text-primary" },
   { id: "dm", icon: "💬", label: "Chat", activeColor: "text-success" },
   { id: "news", icon: "📰", label: "News", activeColor: "text-warning" },
@@ -9,22 +9,20 @@ const tabs: { id: ViewTab; icon: string; label: string; activeColor: string }[] 
   { id: "help", icon: "🆘", label: "Help", activeColor: "text-purple" },
 ];
 
-interface Props {
-  active: ViewTab;
-  onSwitch: (v: ViewTab) => void;
-  hasDmNotif: boolean;
-}
+export function BottomNav() {
+  const activeView = useStore((s) => s.currentView);
+  const setView = useStore((s) => s.setView);
+  const hasDmNotif = useStore((s) => s.hasDmNotif);
 
-export function BottomNav({ active, onSwitch, hasDmNotif }: Props) {
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-panel-border z-50 px-2 pb-3.5 pt-2">
       <div className="flex justify-around">
         {tabs.map((tab) => {
-          const isActive = active === tab.id;
+          const isActive = activeView === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => onSwitch(tab.id)}
+              onClick={() => setView(tab.id)}
               className={`relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl min-w-[52px] transition-all duration-200 border-none ${
                 isActive
                   ? `bg-foreground/10 ${tab.activeColor} -translate-y-0.5`

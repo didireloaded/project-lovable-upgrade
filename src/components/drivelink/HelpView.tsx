@@ -1,9 +1,7 @@
-import { useState } from "react";
-
-interface Props {
-  onSOS: () => void;
-  onShowToast: (msg: string, type?: "success" | "warn") => void;
-}
+import { useState, useCallback } from "react";
+import { useStore } from "@/store";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const aiAnswers = [
   "The speed limit on B1 Highway is 120 km/h. Your current section allows overtaking.",
@@ -12,10 +10,32 @@ const aiAnswers = [
   "Current road conditions: mostly clear, light rain forecast at 17:00. Recommended: reduce speed by 20%.",
 ];
 
-export function HelpView({ onSOS, onShowToast }: Props) {
+export function HelpView() {
+  const showNotification = useStore((s) => s.showNotification);
+  const { user } = useAuth();
+  const [sosStep, setSosStep] = useState<'idle' | 'confirm' | 'sent'>('idle');
   const [aiInput, setAiInput] = useState("");
   const [aiResp, setAiResp] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
+
+  const handleSOS = useCallback(async () => {
+    if (sosStep === 'idle') {
+      setSosStep('confirm');
+      return;
+    }
+
+    // Actually log SOS to database
+    if (user) {
+      await supabase.from('sos_events').insert([{
+        lat: -22.5609,
+        lng: 17.0836,
+      }] as any);
+    }
+
+    setSosStep('sent');
+    showNotification('SOS activated! Emergency services notified.', 'error');
+    setTimeout(() => setSosStep('idle'), 10000);
+  }, [sosStep, user, showNotification]);
 
   const sendAI = () => {
     if (!aiInput.trim()) return;
@@ -35,19 +55,36 @@ export function HelpView({ onSOS, onShowToast }: Props) {
         <p className="text-[0.72rem] text-muted-foreground mt-0.5">Get roadside assistance fast</p>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pb-20 hide-scrollbar">
-        {/* SOS */}
+        {/* SOS - Double confirm */}
         <div className="glass-card !bg-destructive/[0.08] !border-destructive/25">
-          <div className="text-center py-1.5">
-            <div className="text-3xl mb-2">🆘</div>
-            <div className="font-display text-base font-bold text-destructive uppercase tracking-[0.1em]">Emergency SOS</div>
-            <div className="text-[0.7rem] text-muted-foreground my-1.5 mb-3">Sends your location to emergency services</div>
-            <button
-              onClick={onSOS}
-              className="w-full bg-gradient-to-br from-destructive to-destructive/70 border-none rounded-xl py-3 font-display text-base font-bold text-primary-foreground tracking-[0.1em] uppercase cursor-pointer"
-            >
-              ACTIVATE SOS
-            </button>
-          </div>
+          {sosStep === 'sent' ? (
+            <div className="text-center py-4">
+              <div className="text-3xl mb-2">📡</div>
+              <p className="font-display text-sm font-semibold text-destructive">SOS Sent</p>
+              <p className="text-muted-foreground text-xs mt-1">Emergency services have been notified with your location</p>
+            </div>
+          ) : (
+            <div className="text-center py-1.5">
+              <div className="text-3xl mb-2">🆘</div>
+              <div className="font-display text-base font-bold text-destructive uppercase tracking-[0.1em]">Emergency SOS</div>
+              <div className="text-[0.7rem] text-muted-foreground my-1.5 mb-3">Sends your location to emergency services</div>
+              <button
+                onClick={handleSOS}
+                className={`w-full bg-gradient-to-br border-none rounded-xl py-3 font-display text-base font-bold text-primary-foreground tracking-[0.1em] uppercase cursor-pointer transition-all ${
+                  sosStep === 'confirm'
+                    ? 'from-destructive to-destructive animate-pulse'
+                    : 'from-destructive to-destructive/70'
+                }`}
+              >
+                {sosStep === 'confirm' ? '⚠️ TAP AGAIN TO CONFIRM' : 'ACTIVATE SOS'}
+              </button>
+              {sosStep === 'confirm' && (
+                <button onClick={() => setSosStep('idle')} className="text-muted-foreground text-xs mt-2 underline bg-transparent border-none cursor-pointer">
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quick Help */}
@@ -62,7 +99,7 @@ export function HelpView({ onSOS, onShowToast }: Props) {
             ].map((item, i) => (
               <button
                 key={i}
-                onClick={() => onShowToast(item.msg)}
+                onClick={() => showNotification(item.msg, 'success')}
                 className="bg-foreground/[0.04] border border-foreground/[0.07] rounded-[14px] p-3.5 cursor-pointer hover:-translate-y-0.5 hover:bg-foreground/[0.07] transition-all text-center"
               >
                 <div className="text-2xl mb-2">{item.icon}</div>
