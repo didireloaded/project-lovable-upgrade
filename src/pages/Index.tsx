@@ -1,6 +1,9 @@
 import { useStore } from "@/store";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { usePresence } from "@/hooks/usePresence";
+import { getSpeedLimit } from "@/lib/speedLimit";
 import { BottomNav } from "@/components/drivelink/BottomNav";
 import { DriveToast } from "@/components/drivelink/Toast";
 import { HomeView } from "@/components/drivelink/HomeView";
@@ -8,17 +11,31 @@ import { MessagesView } from "@/components/drivelink/MessagesView";
 import { NewsView } from "@/components/drivelink/NewsView";
 import { WeatherView } from "@/components/drivelink/WeatherView";
 import { HelpView } from "@/components/drivelink/HelpView";
+import { useEffect } from "react";
 
 const Index = () => {
   const activeView = useStore((s) => s.currentView);
-  const showNotification = useStore((s) => s.showNotification);
+  const setView = useStore((s) => s.setView);
   const { signOut } = useAuth();
 
-  // Sync profile from DB
+  // Core hooks — always mounted
+  const geo = useGeolocation();
   useProfile();
+  usePresence();
+
+  // Update speed limit when position changes
+  useEffect(() => {
+    if (!geo.lat || !geo.lng) return;
+    getSpeedLimit(geo.lat, geo.lng).then((limit) => {
+      useStore.getState().updateSpeedLimit(limit);
+    });
+  }, [
+    geo.lat ? Math.round(geo.lat * 200) : null,
+    geo.lng ? Math.round(geo.lng * 200) : null,
+  ]);
 
   const handleSOS = () => {
-    showNotification("SOS activated! Emergency services notified.", "error");
+    setView('help');
   };
 
   return (
@@ -80,7 +97,7 @@ const Index = () => {
 
         {/* Info strip */}
         <div className="flex gap-4 flex-wrap justify-center max-w-[375px]">
-          {["⚡ Real-time reports", "🔐 Auth + Cloud DB", "📍 Crowdsourced alerts", "🔴 Live activity feed", "🎙 Voice chat rooms", "🤖 AI assistant"].map((pill) => (
+          {["⚡ Real-time reports", "🔐 Auth + Cloud DB", "📍 GPS tracking", "🔴 Live activity feed", "🌤 Live weather", "🤖 AI assistant"].map((pill) => (
             <div key={pill} className="bg-foreground/5 border border-panel-border rounded-full px-3.5 py-1.5 text-[0.7rem] text-muted-foreground flex items-center gap-1.5">
               {pill}
             </div>

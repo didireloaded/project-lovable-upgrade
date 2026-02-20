@@ -22,6 +22,11 @@ interface DriveState {
   speedLimit: number
   isSessionActive: boolean
 
+  // Location
+  ghostMode: boolean
+  currentStreet: string | null
+  currentCity: string | null
+
   // Stats
   reportsToday: number
   weeklyReports: number
@@ -37,6 +42,7 @@ interface DriveState {
   setView: (view: ViewType) => void
   addReport: (type: ReportType) => void
   updateSpeed: (speed: number) => void
+  updateSpeedLimit: (limit: number) => void
   setNearbyDrivers: (n: number) => void
   setUserId: (id: string | null) => void
   showNotification: (msg: string, type: AppNotification['type']) => void
@@ -46,6 +52,8 @@ interface DriveState {
   setRank: (rank: Rank) => void
   setReportsToday: (n: number) => void
   setWeeklyReports: (n: number) => void
+  toggleGhostMode: () => void
+  setLocation: (street: string | null, city: string | null) => void
 }
 
 const POINTS: Record<ReportType, number> = {
@@ -65,8 +73,10 @@ export const useStore = create<DriveState>()(
     persist(
       (set, get) => ({
         score: 0, rank: 'Bronze', userId: null,
-        currentSpeed: 0, speedLimit: 65,
+        currentSpeed: 0, speedLimit: 60,
         isSessionActive: false,
+        ghostMode: false,
+        currentStreet: null, currentCity: null,
         reportsToday: 0, weeklyReports: 0,
         totalMiles: 0, nearbyDrivers: 0,
         currentView: 'home', notification: null,
@@ -89,12 +99,15 @@ export const useStore = create<DriveState>()(
         },
 
         updateSpeed: (speed) => set({ currentSpeed: speed }),
+        updateSpeedLimit: (limit) => set({ speedLimit: limit }),
         setNearbyDrivers: (n) => set({ nearbyDrivers: n }),
         setUserId: (id) => set({ userId: id }),
         setScore: (score) => set({ score, rank: getRank(score) }),
         setRank: (rank) => set({ rank }),
         setReportsToday: (n) => set({ reportsToday: n }),
         setWeeklyReports: (n) => set({ weeklyReports: n }),
+        toggleGhostMode: () => set((s) => ({ ghostMode: !s.ghostMode })),
+        setLocation: (street, city) => set({ currentStreet: street, currentCity: city }),
 
         showNotification: (message, type) => {
           const id = crypto.randomUUID()
@@ -113,6 +126,7 @@ export const useStore = create<DriveState>()(
         partialize: (s) => ({
           score: s.score, rank: s.rank, userId: s.userId,
           totalMiles: s.totalMiles, weeklyReports: s.weeklyReports,
+          ghostMode: s.ghostMode,
         }),
       }
     ),

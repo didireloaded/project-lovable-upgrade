@@ -1,5 +1,7 @@
 import { useStore } from "@/store";
 import { useReports, type Report } from "@/hooks/useReports";
+import { useProfile } from "@/hooks/useProfile";
+import { useGeolocation } from "@/hooks/useGeolocation";
 import { motion } from "framer-motion";
 import { useState, useCallback } from "react";
 
@@ -22,18 +24,26 @@ export function HomeView() {
   const reportsToday = useStore((s) => s.reportsToday);
   const nearbyDrivers = useStore((s) => s.nearbyDrivers);
   const rank = useStore((s) => s.rank);
+  const weeklyReports = useStore((s) => s.weeklyReports);
   const showNotification = useStore((s) => s.showNotification);
+  const currentStreet = useStore((s) => s.currentStreet);
+  const currentCity = useStore((s) => s.currentCity);
+  const ghostMode = useStore((s) => s.ghostMode);
+  const toggleGhost = useStore((s) => s.toggleGhostMode);
 
   const { reports, loading, submitReport } = useReports();
+  const { syncScore } = useProfile();
+  const geo = useGeolocation();
   const [voiceActive, setVoiceActive] = useState(false);
 
-  const speedStatus = speed > 75 ? "danger" : speed > 65 ? "warn" : "safe";
+  const speedStatus = speed > 120 ? "danger" : speed > 80 ? "warn" : "safe";
   const speedClass = speedStatus === "danger" ? "speed-danger" : speedStatus === "warn" ? "speed-warn" : "speed-safe";
   const progress = Math.min((reportsToday / 10) * 100, 100);
 
   const handleReport = useCallback(async (type: Report['type']) => {
-    const success = await submitReport(type);
+    const success = await submitReport(type, geo.lat ?? undefined, geo.lng ?? undefined);
     if (success) {
+      await syncScore();
       const msgs: Record<string, string> = {
         police: "Police presence reported! +2 pts",
         accident: "Accident reported! +2 pts",
@@ -43,7 +53,7 @@ export function HomeView() {
       };
       showNotification(msgs[type] || `${type} reported!`, 'success');
     }
-  }, [submitReport, showNotification]);
+  }, [submitReport, syncScore, showNotification, geo.lat, geo.lng]);
 
   const toggleVoice = useCallback(() => {
     setVoiceActive((prev) => {
@@ -56,8 +66,8 @@ export function HomeView() {
     });
   }, [showNotification]);
 
-  // Use real reports for activity feed, fall back to empty
   const recentReports = reports.slice(0, 4);
+  const locationLabel = [currentStreet, currentCity].filter(Boolean).join(', ') || 'Windhoek, NA';
 
   return (
     <div className="flex flex-col h-full">
@@ -77,7 +87,7 @@ export function HomeView() {
           <div className="text-center flex-1">
             <div className={`inline-flex flex-col items-center px-4 py-1.5 rounded-2xl transition-all duration-500 ${speedClass}`}>
               <div className="font-display text-2xl font-bold text-primary-foreground leading-none">{speed}</div>
-              <div className="text-[0.62rem] text-primary-foreground/80 tracking-[0.1em] mt-0.5">MPH</div>
+              <div className="text-[0.62rem] text-primary-foreground/80 tracking-[0.1em] mt-0.5">KM/H</div>
             </div>
           </div>
           <div className="text-center flex-1">
@@ -89,20 +99,64 @@ export function HomeView() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 hide-scrollbar">
-        {/* Map placeholder */}
-        <div className="h-40 rounded-[14px] bg-gradient-to-br from-[hsl(216_50%_16%)] to-[hsl(216_60%_10%)] relative overflow-hidden mb-3.5">
+        {/* Map area with GPS info */}
+        <div className="h-48 rounded-[14px] bg-gradient-to-br from-[hsl(216_50%_16%)] to-[hsl(216_60%_10%)] relative overflow-hidden mb-3.5">
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cpath d='M0 20 L100 20 M0 40 L100 40 M0 60 L100 60 M0 80 L100 80 M20 0 L20 100 M40 0 L40 100 M60 0 L60 100 M80 0 L80 100' stroke='rgba(59,127,245,0.12)' stroke-width='1'/%3E%3C/svg%3E")`,
             backgroundSize: "50px 50px"
           }} />
-          <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 375 160" preserveAspectRatio="none">
-            <path d="M0 80 Q80 60 140 80 T280 70 T375 80" stroke="hsl(219 90% 59% / 0.4)" strokeWidth="3" fill="none" />
-            <path d="M0 100 Q90 90 160 110 T320 95 T375 105" stroke="hsl(168 100% 45% / 0.25)" strokeWidth="2" fill="none" />
+          <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 375 200" preserveAspectRatio="none">
+            <path d="M0 100 Q80 80 140 100 T280 90 T375 100" stroke="hsl(219 90% 59% / 0.4)" strokeWidth="3" fill="none" />
+            <path d="M0 120 Q90 110 160 130 T320 115 T375 125" stroke="hsl(168 100% 45% / 0.25)" strokeWidth="2" fill="none" />
           </svg>
-          <div className="absolute top-1/2 left-1/2 w-[22px] h-[22px] bg-primary rounded-[50%_50%_50%_0] -translate-x-1/2 -translate-y-1/2 rotate-[-45deg]" style={{ animation: "ping-map 2s infinite" }} />
-          <div className="absolute top-2.5 right-2.5 bg-background/60 border border-panel-border rounded-lg px-2.5 py-1 text-[0.65rem] text-secondary font-display tracking-wider">
-            📍 Windhoek, NA
+
+          {/* User dot */}
+          {!geo.loading && !geo.error && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <div className="w-5 h-5 bg-primary rounded-full border-[3px] border-white" style={{ boxShadow: '0 0 0 8px rgba(59,127,245,0.25)', animation: 'ping-map 2s infinite' }} />
+            </div>
+          )}
+
+          {/* GPS loading */}
+          {geo.loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-5 h-5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
+                <span className="text-white/60 text-xs">Getting GPS…</span>
+              </div>
+            </div>
+          )}
+
+          {/* GPS error */}
+          {geo.error && !geo.loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <p className="text-white/50 text-xs text-center px-6">⚠️ {geo.error}</p>
+            </div>
+          )}
+
+          {/* Location label */}
+          <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur text-white text-[0.65rem] px-2.5 py-1.5 rounded-xl border border-white/10 max-w-[60%] truncate">
+            📍 {locationLabel}
           </div>
+
+          {/* Ghost mode toggle */}
+          <button
+            onClick={toggleGhost}
+            className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all ${
+              ghostMode
+                ? 'bg-purple/20 border-purple/30 text-purple'
+                : 'bg-black/70 border-white/10 text-white/70'
+            }`}
+          >
+            {ghostMode ? '👻 Ghost' : '👁 Visible'}
+          </button>
+
+          {/* Accuracy */}
+          {geo.accuracy && (
+            <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10">
+              ±{Math.round(geo.accuracy)}m
+            </div>
+          )}
         </div>
 
         {/* Voice Chat */}
@@ -170,7 +224,7 @@ export function HomeView() {
             {[
               { icon: "📍", value: reportsToday, label: "Reports Today", change: "Keep reporting!", color: "text-success" },
               { icon: "👥", value: nearbyDrivers || "—", label: "Nearby Drivers", change: "Active now", color: "text-primary" },
-              { icon: "📈", value: useStore.getState().weeklyReports, label: "Weekly Reports", change: "This week", color: "text-secondary" },
+              { icon: "📈", value: weeklyReports, label: "Weekly Reports", change: "This week", color: "text-secondary" },
               { icon: "🏅", value: rank, label: "Driver Rank", change: `Score: ${score}`, color: "text-warning" },
             ].map((stat, i) => (
               <div key={i} className="bg-foreground/[0.04] border border-foreground/[0.08] rounded-[14px] p-3 text-center hover:-translate-y-0.5 transition-transform cursor-pointer">
@@ -196,7 +250,7 @@ export function HomeView() {
           </div>
         </div>
 
-        {/* Live Activity - Real reports from DB */}
+        {/* Live Activity */}
         <div className="glass-card mt-3.5">
           <div className="card-label">
             Live Activity
