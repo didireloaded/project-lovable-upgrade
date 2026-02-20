@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      channels: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
       driver_presence: {
         Row: {
           last_seen: string
@@ -38,11 +65,44 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          ghost_mode: boolean
           id: string
           rank: string
           score: number
@@ -55,6 +115,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          ghost_mode?: boolean
           id?: string
           rank?: string
           score?: number
@@ -67,6 +128,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          ghost_mode?: boolean
           id?: string
           rank?: string
           score?: number
@@ -74,6 +136,33 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weekly_reports?: number
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -122,6 +211,7 @@ export type Database = {
           id: string
           lat: number | null
           lng: number | null
+          message: string | null
           resolved: boolean
           user_id: string
         }
@@ -130,6 +220,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          message?: string | null
           resolved?: boolean
           user_id: string
         }
@@ -138,8 +229,36 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          message?: string | null
           resolved?: boolean
           user_id?: string
+        }
+        Relationships: []
+      }
+      voice_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          daily_room_url: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          daily_room_url?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          daily_room_url?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
         }
         Relationships: []
       }
@@ -148,7 +267,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      earth: { Args: never; Returns: number }
+      reports_within_radius: {
+        Args: { radius_km?: number; user_lat: number; user_lng: number }
+        Returns: {
+          confirmed_by: number
+          created_at: string
+          description: string | null
+          expires_at: string
+          id: string
+          lat: number
+          lng: number
+          photo_url: string | null
+          type: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "reports"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never
