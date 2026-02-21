@@ -2,6 +2,8 @@ import { useStore } from "@/store";
 import { useReports, type Report } from "@/hooks/useReports";
 import { useProfile } from "@/hooks/useProfile";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { useDriversOnMap } from "@/hooks/usePresence";
+import { DriveMap } from "./DriveMap";
 import { motion } from "framer-motion";
 import { useState, useCallback } from "react";
 
@@ -34,6 +36,7 @@ export function HomeView() {
   const { reports, loading, submitReport } = useReports();
   const { syncScore } = useProfile();
   const geo = useGeolocation();
+  const driversOnMap = useDriversOnMap();
   const [voiceActive, setVoiceActive] = useState(false);
 
   const speedStatus = speed > 120 ? "danger" : speed > 80 ? "warn" : "safe";
@@ -100,26 +103,19 @@ export function HomeView() {
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 hide-scrollbar">
         {/* Map area with GPS info */}
-        <div className="h-48 rounded-[14px] bg-gradient-to-br from-[hsl(216_50%_16%)] to-[hsl(216_60%_10%)] relative overflow-hidden mb-3.5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cpath d='M0 20 L100 20 M0 40 L100 40 M0 60 L100 60 M0 80 L100 80 M20 0 L20 100 M40 0 L40 100 M60 0 L60 100 M80 0 L80 100' stroke='rgba(59,127,245,0.12)' stroke-width='1'/%3E%3C/svg%3E")`,
-            backgroundSize: "50px 50px"
-          }} />
-          <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 375 200" preserveAspectRatio="none">
-            <path d="M0 100 Q80 80 140 100 T280 90 T375 100" stroke="hsl(219 90% 59% / 0.4)" strokeWidth="3" fill="none" />
-            <path d="M0 120 Q90 110 160 130 T320 115 T375 125" stroke="hsl(168 100% 45% / 0.25)" strokeWidth="2" fill="none" />
-          </svg>
+        <div className="h-48 rounded-[14px] relative overflow-hidden mb-3.5">
+          <DriveMap
+            lat={geo.lat}
+            lng={geo.lng}
+            accuracy={geo.accuracy}
+            reports={reports}
+            drivers={driversOnMap}
+            ghostMode={ghostMode}
+          />
 
-          {/* User dot */}
-          {!geo.loading && !geo.error && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className="w-5 h-5 bg-primary rounded-full border-[3px] border-white" style={{ boxShadow: '0 0 0 8px rgba(59,127,245,0.25)', animation: 'ping-map 2s infinite' }} />
-            </div>
-          )}
-
-          {/* GPS loading */}
+          {/* GPS loading overlay */}
           {geo.loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
               <div className="flex flex-col items-center gap-2">
                 <div className="w-5 h-5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
                 <span className="text-white/60 text-xs">Getting GPS…</span>
@@ -129,20 +125,20 @@ export function HomeView() {
 
           {/* GPS error */}
           {geo.error && !geo.loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
               <p className="text-white/50 text-xs text-center px-6">⚠️ {geo.error}</p>
             </div>
           )}
 
           {/* Location label */}
-          <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur text-white text-[0.65rem] px-2.5 py-1.5 rounded-xl border border-white/10 max-w-[60%] truncate">
+          <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur text-white text-[0.65rem] px-2.5 py-1.5 rounded-xl border border-white/10 max-w-[60%] truncate z-10">
             📍 {locationLabel}
           </div>
 
           {/* Ghost mode toggle */}
           <button
             onClick={toggleGhost}
-            className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all ${
+            className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all z-10 ${
               ghostMode
                 ? 'bg-purple/20 border-purple/30 text-purple'
                 : 'bg-black/70 border-white/10 text-white/70'
@@ -153,7 +149,7 @@ export function HomeView() {
 
           {/* Accuracy */}
           {geo.accuracy && (
-            <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10">
+            <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10 z-10">
               ±{Math.round(geo.accuracy)}m
             </div>
           )}
