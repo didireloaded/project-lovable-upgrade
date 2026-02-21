@@ -81,12 +81,19 @@ export function useReports(radiusKm = 10) {
         lng = 17.0836 + (Math.random() - 0.5) * 0.01
       }
 
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        showNotification('You must be signed in to report', 'error')
+        return false
+      }
+
       const { error } = await supabase.from('reports').insert({
         type,
         lat,
         lng,
         description: description ?? null,
-      } as any)
+        user_id: user.id,
+      })
 
       if (error) {
         showNotification('Failed to submit report', 'error')
@@ -107,13 +114,12 @@ export function useReports(radiusKm = 10) {
           const icons: Record<string, string> = {
             police: '🚔', accident: '🚗', hazard: '⚠️', traffic: '🚦', pothole: '🕳️',
           }
-          const { data: { user } } = await supabase.auth.getUser()
           if (user) {
             await supabase.from('messages').insert({
               channel_id: channel.id,
               user_id:    user.id,
               content:    `${icons[type] ?? '📍'} ${type.toUpperCase()} reported nearby — ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-            } as any)
+            })
           }
         }
       } catch {} // Don't block on traffic-board post

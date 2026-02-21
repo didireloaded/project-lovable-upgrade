@@ -1,17 +1,15 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore } from '@/store'
 import { useAuth } from './useAuth'
 
 export function useProfile() {
-  const { user }          = useAuth()
-  const setScore          = useStore((s) => s.setScore)
-  const setRank           = useStore((s) => s.setRank)
-  const setWeeklyReports  = useStore((s) => s.setWeeklyReports)
-  const setReportsToday   = useStore((s) => s.setReportsToday)
+  const { user } = useAuth()
+  const loadedRef = useRef(false)
 
   useEffect(() => {
-    if (!user) return
+    if (!user || loadedRef.current) return
+    loadedRef.current = true
 
     const load = async () => {
       const { data } = await supabase
@@ -21,12 +19,11 @@ export function useProfile() {
         .single()
 
       if (data) {
-        setScore(data.score)
-        setRank(data.rank as any)
-        setWeeklyReports(data.weekly_reports)
+        useStore.getState().setScore(data.score)
+        useStore.getState().setRank(data.rank as any)
+        useStore.getState().setWeeklyReports(data.weekly_reports)
       }
 
-      // Load today's actual report count
       const today = new Date().toISOString().split('T')[0]
       const { count } = await supabase
         .from('reports')
@@ -34,13 +31,12 @@ export function useProfile() {
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00`)
 
-      if (count != null) setReportsToday(count)
+      if (count != null) useStore.getState().setReportsToday(count)
     }
 
     load()
-  }, [user, setScore, setRank, setWeeklyReports, setReportsToday])
+  }, [user])
 
-  // Call after every report submission
   const syncScore = useCallback(async () => {
     if (!user) return
     const { score, rank, weeklyReports } = useStore.getState()
