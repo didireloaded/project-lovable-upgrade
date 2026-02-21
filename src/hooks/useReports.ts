@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore } from '@/store'
 import { useGeolocation } from './useGeolocation'
+import { queueReport } from '@/lib/offlineQueue'
 
 export interface Report {
   id: string
@@ -76,9 +77,16 @@ export function useReports(radiusKm = 10) {
   const submitReport = useCallback(
     async (type: Report['type'], lat?: number, lng?: number, description?: string) => {
       if (lat == null || lng == null) {
-        // Fallback to Windhoek default if no GPS
         lat = -22.5609 + (Math.random() - 0.5) * 0.01
         lng = 17.0836 + (Math.random() - 0.5) * 0.01
+      }
+
+      // Offline? Queue to IndexedDB
+      if (!navigator.onLine) {
+        await queueReport({ type, lat, lng, description: description ?? null, queued_at: new Date().toISOString() })
+        addReport(type)
+        showNotification('📴 Saved offline — will sync when back online', 'warning')
+        return true
       }
 
       const { data: { user } } = await supabase.auth.getUser()

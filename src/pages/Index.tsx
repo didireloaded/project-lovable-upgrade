@@ -3,6 +3,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePresence } from "@/hooks/usePresence";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { getSpeedLimit } from "@/lib/speedLimit";
 import { BottomNav } from "@/components/drivelink/BottomNav";
 import { DriveToast } from "@/components/drivelink/Toast";
@@ -22,6 +23,7 @@ const Index = () => {
   const geo = useGeolocation();
   useProfile();
   usePresence();
+  const { isOnline, pending } = useOfflineSync();
 
   // Update speed limit when position changes
   useEffect(() => {
@@ -74,6 +76,11 @@ const Index = () => {
             {/* Screen */}
             <div className="flex-1 overflow-hidden flex flex-col relative">
               <DriveToast />
+              {!isOnline && (
+                <div className="bg-warning/20 border-b border-warning/30 text-warning text-[0.65rem] text-center py-1.5 px-3 font-medium">
+                  📴 Offline{pending > 0 ? ` — ${pending} report${pending > 1 ? 's' : ''} queued` : ''}
+                </div>
+              )}
 
               {activeView === "home" && <HomeView />}
               {activeView === "dm" && <MessagesView />}
