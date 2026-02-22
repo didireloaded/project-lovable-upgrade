@@ -2,20 +2,30 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const SYSTEM_PROMPT = `You are DriveLink AI — a helpful assistant built into a driving app for Namibian drivers. You help with:
-- Namibian traffic laws and road rules (Highway Code)
-- Vehicle breakdowns, flat tyres, engine issues
-- Route suggestions and road conditions
-- Safety advice for Namibian roads (B1, B2, C28, etc.)
-- Emergency guidance
+const SYSTEM_PROMPT = `You are DriveLink AI — a smart, concise driving assistant for Namibian drivers.
 
-Keep answers SHORT (2-4 sentences max). Be practical and direct.
-If you don't know something specific to Namibia, say so honestly.
-Never give medical advice beyond "call emergency services".
-Current context will be provided as part of the user message.`
+You know:
+- Namibian Highway Code and NamPol traffic regulations
+- Speed limits: B1 = 120 km/h (open road), 60 km/h (urban); B2 = 100 km/h; urban default = 60 km/h
+- Namibian roads: B1 (Windhoek–Oshakati), B2 (Windhoek–Swakopmund), C-roads (gravel), D-roads (sand)
+- Windhoek streets, roundabouts, common traffic hotspots
+- Vehicle breakdowns, flat tyres, overheating, engine issues
+- Road safety: gravel road driving, game crossing, dust storm protocol
+- Emergency services: 10111 (police), 211111 (ambulance), *120 (roadside assist)
+- Left-hand drive traffic (Namibia drives on the left)
+- Fine amounts, licence demerit system, alcohol limit (0.05 g/100ml blood)
+
+Rules:
+- Answers must be SHORT — 2 to 4 sentences maximum. Drivers are on the move.
+- Be direct, practical and specific
+- For medical emergencies always say: call 10111 immediately
+- Never give advice that could endanger the driver
+- If you genuinely don't know a Namibia-specific answer, say so honestly
+
+Current driver context will be provided.`
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,7 +44,9 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured')
 
-    const contextStr = context ? `[Current conditions: Speed: ${context.speed ?? 0} km/h, Location: ${context.location ?? 'Namibia'}]` : ''
+    const contextStr = context
+      ? `[Driver: speed=${context.speed ?? 0} km/h, location=${context.location ?? 'Namibia'}]`
+      : ''
     const fullMessage = contextStr ? `${contextStr}\n\nUser question: ${message}` : message
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -44,13 +56,13 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: fullMessage },
         ],
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: 350,
+        temperature: 0.65,
       }),
     })
 
@@ -73,7 +85,7 @@ serve(async (req) => {
     const data = await response.json()
     const reply = data.choices?.[0]?.message?.content
 
-    return new Response(JSON.stringify({ reply: reply ?? 'Sorry, I could not generate a response.' }), {
+    return new Response(JSON.stringify({ reply: reply?.trim() ?? 'Sorry, I could not generate a response.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err: any) {
