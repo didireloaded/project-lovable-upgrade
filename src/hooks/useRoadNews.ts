@@ -10,15 +10,15 @@ export interface NewsArticle {
   category:    'accident' | 'traffic' | 'weather' | 'road' | 'general'
 }
 
-const CACHE_KEY  = 'drivelink-news-cache'
+const CACHE_KEY  = 'dl-news-v1'
 const CACHE_MINS = 15
 
 function categorise(title: string): NewsArticle['category'] {
   const t = title.toLowerCase()
-  if (/accident|crash|collision|fatal/.test(t))     return 'accident'
-  if (/traffic|congestion|roadblock|jam/.test(t))   return 'traffic'
-  if (/rain|flood|fog|wind|storm/.test(t))           return 'weather'
-  if (/road|highway|pothole|repair|construction/.test(t)) return 'road'
+  if (/accident|crash|collision|fatal|injur/.test(t))      return 'accident'
+  if (/traffic|congestion|jam|roadblock|delay/.test(t))    return 'traffic'
+  if (/rain|flood|fog|storm|wind|drought/.test(t))          return 'weather'
+  if (/road|highway|pothole|repair|b1|b2|gravel/.test(t))  return 'road'
   return 'general'
 }
 
@@ -32,65 +32,84 @@ const FALLBACK_NEWS: NewsArticle[] = [
 ]
 
 export function useRoadNews() {
-  const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
+  const [articles, setArticles]   = useState<NewsArticle[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<number>(0)
 
-  useEffect(() => {
-    const load = async () => {
-      // Check cache
-      try {
-        const cached = sessionStorage.getItem(CACHE_KEY)
-        if (cached) {
-          const { data, ts } = JSON.parse(cached)
-          if (Date.now() - ts < CACHE_MINS * 60 * 1000) {
-            setArticles(data)
-            setLoading(false)
-            return
-          }
+  const load = async (force = false) => {
+    // Return cached if fresh
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY)
+      if (cached && !force) {
+        const { data, ts } = JSON.parse(cached)
+        if (Date.now() - ts < CACHE_MINS * 60 * 1000) {
+          setArticles(data)
+          setLoading(false)
+          setLastFetch(ts)
+          return
         }
-      } catch {}
-
-      const key = import.meta.env.VITE_NEWSDATA_API_KEY
-      if (!key) {
-        // Use fallback news
-        setArticles(FALLBACK_NEWS)
-        setLoading(false)
-        return
       }
+    } catch {}
 
-      try {
-        const url = `https://newsdata.io/api/1/news?apikey=${key}` +
-          `&q=namibia+road+OR+traffic+OR+accident&language=en&size=10`
-        const res  = await fetch(url)
-        const data = await res.json()
+    const key = import.meta.env.VITE_NEWSDATA_API_KEY
+    if (!key) {
+      setArticles(FALLBACK_NEWS)
+      setLoading(false)
+      return
+    }
 
-        if (data.status !== 'success') throw new Error(data.message)
+    try {
+      const url =
+        `https://newsdata.io/api/1/news` +
+        `?apikey=${key}` +
+        `&q=namibia+road+OR+accident+OR+traffic+OR+crash` +
+        `&language=en` +
+        `&size=15` +
+        `&category=politics,crime,other`
 
-        const parsed: NewsArticle[] = (data.results ?? []).map((a: any) => ({
-          id:          a.article_id,
+      const res  = await fetch(url)
+      const data = await res.json()
+
+      if (data.status !== 'success') throw new Error(data.message ?? 'NewsData API error')
+
+      const parsed: NewsArticle[] = (data.results ?? [])
+        .filter((a: any) => a.title && a.link)
+        .map((a: any) => ({
+          id:          a.article_id ?? a.link,
           title:       a.title,
-          description: a.description,
+          description: a.description ?? null,
           url:         a.link,
-          source:      a.source_id,
-          published:   a.pubDate,
+          source:      a.source_id ?? a.source_name ?? 'Unknown',
+          published:   a.pubDate ?? new Date().toISOString(),
           category:    categorise(a.title),
         }))
 
-        setArticles(parsed)
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: parsed, ts: Date.now() }))
+      const now = Date.now()
+      setArticles(parsed)
+      setLastFetch(now)
+      setError(null)
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: parsed, ts: now }))
+    } catch (e: any) {
+      setError(e.message ?? 'Could not load news — check your connection')
+      // Fall back to stale cache or fallback
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) setArticles(JSON.parse(cached).data)
+        else setArticles(FALLBACK_NEWS)
       } catch {
-        setError('Could not load news.')
         setArticles(FALLBACK_NEWS)
-      } finally {
-        setLoading(false)
       }
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     load()
-    const interval = setInterval(load, CACHE_MINS * 60 * 1000)
-    return () => clearInterval(interval)
+    const timer = setInterval(() => load(true), CACHE_MINS * 60 * 1000)
+    return () => clearInterval(timer)
   }, [])
 
-  return { articles, loading, error }
+  return { articles, loading, error, refresh: () => load(true), lastFetch }
 }
