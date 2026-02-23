@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '@/integrations/supabase/client'
 
 export interface NewsArticle {
   id:          string
@@ -22,7 +23,7 @@ function categorise(title: string): NewsArticle['category'] {
   return 'general'
 }
 
-// Fallback static news when no API key is configured
+// Fallback static news when API is unavailable
 const FALLBACK_NEWS: NewsArticle[] = [
   { id: '1', title: 'Major congestion on Sam Nujoma Drive — roadworks expected until end of month', description: 'Drivers should expect delays during peak hours as road resurfacing continues.', url: '#', source: 'MTC Road Watch', published: new Date(Date.now() - 15 * 60000).toISOString(), category: 'traffic' },
   { id: '2', title: 'New speed cameras installed on B1 between Windhoek and Gobabis', description: 'Traffic department has installed 12 new speed detection cameras along the B1 highway.', url: '#', source: 'Namibian Traffic Dept', published: new Date(Date.now() - 60 * 60000).toISOString(), category: 'road' },
@@ -52,38 +53,24 @@ export function useRoadNews() {
       }
     } catch {}
 
-    const key = import.meta.env.VITE_NEWSDATA_API_KEY
-    if (!key) {
-      setArticles(FALLBACK_NEWS)
-      setLoading(false)
-      return
-    }
-
     try {
-      const url =
-        `https://newsdata.io/api/1/news` +
-        `?apikey=${key}` +
-        `&q=namibia+road+OR+accident+OR+traffic+OR+crash` +
-        `&language=en` +
-        `&size=15` +
-        `&category=politics,crime,other`
+      const { data, error: fnError } = await supabase.functions.invoke('fetch-news')
 
-      const res  = await fetch(url)
-      const data = await res.json()
+      if (fnError) throw new Error(fnError.message ?? 'Failed to fetch news')
 
-      if (data.status !== 'success') throw new Error(data.message ?? 'NewsData API error')
+      const results = data?.results ?? []
 
-      const parsed: NewsArticle[] = (data.results ?? [])
-        .filter((a: any) => a.title && a.link)
-        .map((a: any) => ({
-          id:          a.article_id ?? a.link,
-          title:       a.title,
-          description: a.description ?? null,
-          url:         a.link,
-          source:      a.source_id ?? a.source_name ?? 'Unknown',
-          published:   a.pubDate ?? new Date().toISOString(),
-          category:    categorise(a.title),
-        }))
+      if (results.length === 0 && data?.error) {
+        // API key not configured — use fallback
+        setArticles(FALLBACK_NEWS)
+        setLoading(false)
+        return
+      }
+
+      const parsed: NewsArticle[] = results.map((a: any) => ({
+        ...a,
+        category: categorise(a.title),
+      }))
 
       const now = Date.now()
       setArticles(parsed)
