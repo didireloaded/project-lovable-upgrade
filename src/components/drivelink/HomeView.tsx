@@ -4,6 +4,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useDriversOnMap } from "@/hooks/usePresence";
 import { DriveMap } from "./DriveMap";
+import { LocationTag } from "@/components/ui/location-tag";
 import { motion } from "framer-motion";
 import { useState, useCallback } from "react";
 
@@ -131,8 +132,12 @@ export function HomeView() {
           )}
 
           {/* Location label */}
-          <div className="absolute top-2.5 left-2.5 bg-black/70 backdrop-blur text-white text-[0.65rem] px-2.5 py-1.5 rounded-xl border border-white/10 max-w-[60%] truncate z-10">
-            📍 {locationLabel}
+          <div className="absolute top-2.5 left-2.5 z-10 scale-[0.85] origin-top-left">
+            <LocationTag
+              city={currentCity ?? 'Windhoek'}
+              country="NA"
+              timezone="CAT"
+            />
           </div>
 
           {/* Ghost mode toggle */}

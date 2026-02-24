@@ -16,7 +16,6 @@ import { useEffect } from "react";
 
 const Index = () => {
   const activeView = useStore((s) => s.currentView);
-  const setView = useStore((s) => s.setView);
   const { signOut } = useAuth();
 
   // Core hooks — always mounted
@@ -35,10 +34,6 @@ const Index = () => {
     geo.lat ? Math.round(geo.lat * 200) : null,
     geo.lng ? Math.round(geo.lng * 200) : null,
   ]);
-
-  const handleSOS = () => {
-    setView('help');
-  };
 
   return (
     <div className="min-h-screen flex items-start justify-center py-10 px-5 relative">
@@ -87,15 +82,6 @@ const Index = () => {
               {activeView === "news" && <NewsView />}
               {activeView === "weather" && <WeatherView />}
               {activeView === "help" && <HelpView />}
-
-              {/* FAB */}
-              <button
-                onClick={handleSOS}
-                className="absolute bottom-[90px] right-4 w-12 h-12 rounded-full bg-gradient-to-br from-destructive to-destructive/60 border-none flex items-center justify-center text-xl z-40 cursor-pointer hover:scale-110 transition-transform"
-                style={{ animation: "fab-pulse 3s infinite" }}
-              >
-                🆘
-              </button>
 
               <BottomNav />
             </div>
