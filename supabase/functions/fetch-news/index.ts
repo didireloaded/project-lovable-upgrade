@@ -20,7 +20,8 @@ serve(async (req) => {
     const url =
       `https://newsdata.io/api/1/news` +
       `?apikey=${apiKey}` +
-      `&q=namibia+road+OR+accident+OR+traffic+OR+crash` +
+      `&q=(road OR traffic OR accident OR crash OR pothole OR highway OR congestion OR roadblock) AND namibia` +
+      `&country=na` +
       `&language=en` +
       `&size=10`
 
