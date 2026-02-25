@@ -3,17 +3,22 @@ import { useReports, type Report } from "@/hooks/useReports";
 import { useProfile } from "@/hooks/useProfile";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useDriversOnMap } from "@/hooks/usePresence";
+import { useVoiceRoom } from "@/hooks/useVoiceRoom";
 import { DriveMap } from "./DriveMap";
 import { LocationTag } from "@/components/ui/location-tag";
 import { motion } from "framer-motion";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+
+const POINTS: Record<string, number> = {
+  police: 2, accident: 2, hazard: 2, traffic: 2, pothole: 3,
+};
 
 const alertButtons = [
-  { type: "police" as const, icon: "🚔", label: "Police", cls: "from-destructive to-destructive/70 shadow-destructive/30" },
+  { type: "police"   as const, icon: "🚔", label: "Police",   cls: "from-destructive to-destructive/70 shadow-destructive/30" },
   { type: "accident" as const, icon: "🚗", label: "Accident", cls: "from-warning to-warning/70 shadow-warning/30" },
-  { type: "hazard" as const, icon: "⚠️", label: "Hazard", cls: "from-warning to-warning/60 shadow-warning/25" },
-  { type: "traffic" as const, icon: "🚦", label: "Traffic", cls: "from-primary to-primary/70 shadow-primary/30" },
-  { type: "pothole" as const, icon: "🕳️", label: "Pothole", cls: "from-purple to-purple/70 shadow-purple/30" },
+  { type: "hazard"   as const, icon: "⚠️", label: "Hazard",   cls: "from-warning to-warning/60 shadow-warning/25" },
+  { type: "traffic"  as const, icon: "🚦", label: "Traffic",  cls: "from-primary to-primary/70 shadow-primary/30" },
+  { type: "pothole"  as const, icon: "🕳️", label: "Pothole",  cls: "from-purple to-purple/70 shadow-purple/30" },
 ];
 
 const REPORT_ICONS: Record<string, string> = {
@@ -21,57 +26,51 @@ const REPORT_ICONS: Record<string, string> = {
 };
 
 export function HomeView() {
-  const score = useStore((s) => s.score);
-  const speed = useStore((s) => s.currentSpeed);
-  const speedLimit = useStore((s) => s.speedLimit);
-  const reportsToday = useStore((s) => s.reportsToday);
-  const nearbyDrivers = useStore((s) => s.nearbyDrivers);
-  const rank = useStore((s) => s.rank);
-  const weeklyReports = useStore((s) => s.weeklyReports);
+  const score          = useStore((s) => s.score);
+  const speed          = useStore((s) => s.currentSpeed);
+  const speedLimit     = useStore((s) => s.speedLimit);
+  const reportsToday   = useStore((s) => s.reportsToday);
+  const nearbyDrivers  = useStore((s) => s.nearbyDrivers);
+  const rank           = useStore((s) => s.rank);
+  const weeklyReports  = useStore((s) => s.weeklyReports);
   const showNotification = useStore((s) => s.showNotification);
-  const currentStreet = useStore((s) => s.currentStreet);
-  const currentCity = useStore((s) => s.currentCity);
-  const ghostMode = useStore((s) => s.ghostMode);
-  const toggleGhost = useStore((s) => s.toggleGhostMode);
+  const currentCity    = useStore((s) => s.currentCity);
+  const ghostMode      = useStore((s) => s.ghostMode);
+  const toggleGhost    = useStore((s) => s.toggleGhostMode);
 
-  const { reports, loading, submitReport } = useReports();
+  const { reports, loading, submitReport, confirmReport } = useReports();
   const { syncScore } = useProfile();
-  const geo = useGeolocation();
-  const driversOnMap = useDriversOnMap();
-  const [voiceActive, setVoiceActive] = useState(false);
+  const geo            = useGeolocation();
+  const driversOnMap   = useDriversOnMap();
+  const { voiceActive, voiceParticipants, join: joinVoice, leave: leaveVoice } = useVoiceRoom();
 
   const speedStatus = speed > 120 ? "danger" : speed > 80 ? "warn" : "safe";
-  const speedClass = speedStatus === "danger" ? "speed-danger" : speedStatus === "warn" ? "speed-warn" : "speed-safe";
-  const progress = Math.min((reportsToday / 10) * 100, 100);
+  const speedClass  = speedStatus === "danger" ? "speed-danger" : speedStatus === "warn" ? "speed-warn" : "speed-safe";
+  const progress    = Math.min((reportsToday / 10) * 100, 100);
 
   const handleReport = useCallback(async (type: Report['type']) => {
     const success = await submitReport(type, geo.lat ?? undefined, geo.lng ?? undefined);
     if (success) {
-      await syncScore();
+      const pts = POINTS[type] ?? 2;
+      await syncScore(pts, type);
       const msgs: Record<string, string> = {
-        police: "Police presence reported! +2 pts",
-        accident: "Accident reported! +2 pts",
-        hazard: "Road hazard reported! +2 pts",
-        traffic: "Traffic jam reported! +2 pts",
-        pothole: "📸 Pothole reported! +3 pts",
+        police:   `🚔 Police reported! +${pts} pts`,
+        accident: `🚗 Accident reported! +${pts} pts`,
+        hazard:   `⚠️ Hazard reported! +${pts} pts`,
+        traffic:  `🚦 Traffic reported! +${pts} pts`,
+        pothole:  `🕳️ Pothole reported! +${pts} pts`,
       };
-      showNotification(msgs[type] || `${type} reported!`, 'success');
+      showNotification(msgs[type] || `${type} reported!`, "success");
     }
   }, [submitReport, syncScore, showNotification, geo.lat, geo.lng]);
 
   const toggleVoice = useCallback(() => {
-    setVoiceActive((prev) => {
-      const next = !prev;
-      showNotification(
-        next ? "🎙 Connected to nearby drivers!" : "🔕 Disconnected from voice chat",
-        next ? "success" : "warning"
-      );
-      return next;
-    });
-  }, [showNotification]);
+    if (voiceActive) leaveVoice();
+    else joinVoice("drivers-general");
+  }, [voiceActive, joinVoice, leaveVoice]);
 
-  const recentReports = reports.slice(0, 4);
-  const locationLabel = [currentStreet, currentCity].filter(Boolean).join(', ') || 'Windhoek, NA';
+  const recentReports  = reports.slice(0, 5);
+  const speedDisplay   = speed > 0 ? speed : "—";
 
   return (
     <div className="flex flex-col h-full">
@@ -89,8 +88,8 @@ export function HomeView() {
             <div className="text-[0.62rem] text-foreground/60 tracking-[0.1em] mt-0.5">SCORE</div>
           </div>
           <div className="text-center flex-1">
-            <div className={`inline-flex flex-col items-center px-4 py-1.5 rounded-2xl transition-all duration-500 ${speedClass}`}>
-              <div className="font-display text-2xl font-bold text-primary-foreground leading-none">{speed}</div>
+            <div className={`inline-flex flex-col items-center px-4 py-1.5 rounded-2xl transition-all duration-500 ${speed > 0 ? speedClass : ""}`}>
+              <div className="font-display text-2xl font-bold text-primary-foreground leading-none">{speedDisplay}</div>
               <div className="text-[0.62rem] text-primary-foreground/80 tracking-[0.1em] mt-0.5">KM/H</div>
             </div>
           </div>
@@ -103,7 +102,7 @@ export function HomeView() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 hide-scrollbar">
-        {/* Map area with GPS info */}
+        {/* Map */}
         <div className="h-48 rounded-[14px] relative overflow-hidden mb-3.5">
           <DriveMap
             lat={geo.lat}
@@ -114,7 +113,6 @@ export function HomeView() {
             ghostMode={ghostMode}
           />
 
-          {/* GPS loading overlay */}
           {geo.loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
               <div className="flex flex-col items-center gap-2">
@@ -124,14 +122,12 @@ export function HomeView() {
             </div>
           )}
 
-          {/* GPS error */}
           {geo.error && !geo.loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
               <p className="text-white/50 text-xs text-center px-6">⚠️ {geo.error}</p>
             </div>
           )}
 
-          {/* Location label */}
           <div className="absolute top-2.5 left-2.5 z-10 scale-[0.85] origin-top-left">
             <LocationTag
               city={currentCity ?? 'Windhoek'}
@@ -140,7 +136,6 @@ export function HomeView() {
             />
           </div>
 
-          {/* Ghost mode toggle */}
           <button
             onClick={toggleGhost}
             className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all z-10 ${
@@ -152,7 +147,6 @@ export function HomeView() {
             {ghostMode ? '👻 Ghost' : '👁 Visible'}
           </button>
 
-          {/* Accuracy */}
           {geo.accuracy && (
             <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10 z-10">
               ±{Math.round(geo.accuracy)}m
@@ -181,7 +175,7 @@ export function HomeView() {
               )}
             </div>
             <div className={`text-[0.62rem] mt-1.5 ${voiceActive ? "text-secondary" : "text-muted-foreground"}`}>
-              {voiceActive ? `🔴 Connected to ${nearbyDrivers} drivers` : "Tap to connect"}
+              {voiceActive ? `🔴 ${voiceParticipants} in room` : "Tap to connect"}
             </div>
           </div>
         </div>
@@ -273,7 +267,7 @@ export function HomeView() {
                   key={report.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5 px-3 py-2.5 bg-foreground/[0.04] rounded-xl cursor-pointer hover:bg-foreground/[0.07] transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.04] rounded-xl cursor-pointer hover:bg-foreground/[0.07] transition-colors"
                 >
                   <span className="text-sm mt-0.5">{REPORT_ICONS[report.type] || "📍"}</span>
                   <div className="flex-1">
@@ -283,6 +277,13 @@ export function HomeView() {
                       <span className="text-success">{report.confirmed_by} confirmations</span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => confirmReport(report.id)}
+                    className="flex-shrink-0 flex items-center gap-1 bg-success/[0.12] border border-success/20 rounded-lg px-2 py-1 text-success text-[0.58rem] font-semibold hover:bg-success/20 transition-colors cursor-pointer"
+                    title="Confirm this report"
+                  >
+                    ✓
+                  </button>
                 </motion.div>
               ))
             )}

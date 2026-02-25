@@ -30,6 +30,8 @@
 
   <body>
     <div id="root"></div>
+    <!-- Daily.co audio SDK — loaded before React so window.DailyIframe is available -->
+    <script src="https://unpkg.com/@daily-co/daily-js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
