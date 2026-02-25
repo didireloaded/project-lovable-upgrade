@@ -43,6 +43,7 @@ export type Database = {
       }
       driver_presence: {
         Row: {
+          heading: number | null
           last_seen: string
           lat: number | null
           lng: number | null
@@ -50,6 +51,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          heading?: number | null
           last_seen?: string
           lat?: number | null
           lng?: number | null
@@ -57,6 +59,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          heading?: number | null
           last_seen?: string
           lat?: number | null
           lng?: number | null
@@ -104,7 +107,9 @@ export type Database = {
           display_name: string | null
           ghost_mode: boolean
           id: string
+          last_report_date: string | null
           rank: string
+          reports_today: number
           score: number
           total_miles: number
           updated_at: string
@@ -117,7 +122,9 @@ export type Database = {
           display_name?: string | null
           ghost_mode?: boolean
           id?: string
+          last_report_date?: string | null
           rank?: string
+          reports_today?: number
           score?: number
           total_miles?: number
           updated_at?: string
@@ -130,7 +137,9 @@ export type Database = {
           display_name?: string | null
           ghost_mode?: boolean
           id?: string
+          last_report_date?: string | null
           rank?: string
+          reports_today?: number
           score?: number
           total_miles?: number
           updated_at?: string
@@ -267,7 +276,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_report_score: {
+        Args: { p_points: number; p_report_type: string }
+        Returns: Json
+      }
+      confirm_report: { Args: { p_report_id: string }; Returns: undefined }
       earth: { Args: never; Returns: number }
+      nearby_drivers: {
+        Args: { radius_km?: number; user_lat: number; user_lng: number }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          heading: number
+          last_seen: string
+          lat: number
+          lng: number
+          speed: number
+          user_id: string
+        }[]
+      }
       reports_within_radius: {
         Args: { radius_km?: number; user_lat: number; user_lng: number }
         Returns: {

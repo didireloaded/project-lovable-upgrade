@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore } from '@/store'
 import { useAuth } from './useAuth'
@@ -9,9 +9,10 @@ export interface DriverOnMap {
   lat:          number
   lng:          number
   speed:        number | null
-  avatar_url:   string | null
-  display_name: string | null
+  heading:      number | null
   last_seen:    string
+  display_name: string | null
+  avatar_url:   string | null
 }
 
 export function usePresence() {
@@ -21,7 +22,6 @@ export function usePresence() {
   const ghostMode        = useStore((s) => s.ghostMode)
   const intervalRef      = useRef<ReturnType<typeof setInterval>>()
 
-  // Broadcast own position (unless ghost mode)
   useEffect(() => {
     if (!user || !geo.lat || !geo.lng) return
 
@@ -35,8 +35,9 @@ export function usePresence() {
         lat:       geo.lat!,
         lng:       geo.lng!,
         speed:     geo.speed != null ? Math.round(geo.speed * 3.6) : 0,
+        heading:   geo.heading != null ? Math.round(geo.heading) : null,
         last_seen: new Date().toISOString(),
-      })
+      } as any)
     }
 
     upsert()
@@ -48,9 +49,23 @@ export function usePresence() {
         supabase.from('driver_presence').delete().eq('user_id', user.id)
       }
     }
-  }, [user, geo.lat, geo.lng, geo.speed, ghostMode])
+  }, [user, geo.lat, geo.lng, geo.speed, geo.heading, ghostMode])
 
-  // Count nearby drivers
+  const refreshCount = useCallback(async () => {
+    if (!user) return
+    const cutoff = new Date(Date.now() - 30_000).toISOString()
+    const { count } = await supabase
+      .from('driver_presence')
+      .select('user_id', { count: 'exact', head: true })
+      .neq('user_id', user.id)
+      .gte('last_seen', cutoff)
+    setNearbyDrivers(count ?? 0)
+  }, [user, setNearbyDrivers])
+
+  useEffect(() => {
+    if (user) refreshCount()
+  }, [user, refreshCount])
+
   useEffect(() => {
     if (!user) return
 
@@ -58,49 +73,62 @@ export function usePresence() {
       .channel('driver-presence-count')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'driver_presence' },
-        async () => {
-          const cutoff = new Date(Date.now() - 30_000).toISOString()
-          const { count } = await supabase
-            .from('driver_presence')
-            .select('user_id', { count: 'exact', head: true })
-            .neq('user_id', user.id)
-            .gte('last_seen', cutoff)
-          setNearbyDrivers(count ?? 0)
-        }
+        () => refreshCount()
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user, setNearbyDrivers])
+  }, [user, refreshCount])
 }
 
 export function useDriversOnMap(): DriverOnMap[] {
   const [drivers, setDrivers] = useState<DriverOnMap[]>([])
   const { user } = useAuth()
+  const geo = useGeolocation()
+
+  const fetchDrivers = useCallback(async () => {
+    if (!user) return
+
+    if (geo.lat != null && geo.lng != null) {
+      const { data } = await supabase.rpc('nearby_drivers' as any, {
+        user_lat:  geo.lat,
+        user_lng:  geo.lng,
+        radius_km: 10,
+      })
+      if (data) setDrivers(data as DriverOnMap[])
+      return
+    }
+
+    const cutoff = new Date(Date.now() - 30_000).toISOString()
+    const { data } = await supabase
+      .from('driver_presence')
+      .select('user_id, lat, lng, speed, heading, last_seen')
+      .neq('user_id', user.id)
+      .gte('last_seen', cutoff)
+
+    if (!data) return
+
+    const ids = data.map((d: any) => d.user_id)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, avatar_url')
+      .in('user_id', ids)
+
+    const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]))
+
+    setDrivers(data.map((d: any) => ({
+      ...d,
+      display_name: profileMap.get(d.user_id)?.display_name ?? null,
+      avatar_url:   profileMap.get(d.user_id)?.avatar_url   ?? null,
+    })))
+  }, [user, geo.lat, geo.lng])
+
+  useEffect(() => {
+    fetchDrivers()
+  }, [fetchDrivers])
 
   useEffect(() => {
     if (!user) return
-
-    const fetchDrivers = async () => {
-      const cutoff = new Date(Date.now() - 30_000).toISOString()
-      const { data } = await supabase
-        .from('driver_presence')
-        .select('user_id, lat, lng, speed, last_seen')
-        .neq('user_id', user.id)
-        .gte('last_seen', cutoff)
-
-      if (data) setDrivers(data.map((d: any) => ({
-        user_id:      d.user_id,
-        lat:          d.lat,
-        lng:          d.lng,
-        speed:        d.speed,
-        last_seen:    d.last_seen,
-        avatar_url:   null,
-        display_name: null,
-      })))
-    }
-
-    fetchDrivers()
 
     const channel = supabase
       .channel('drivers-on-map')
@@ -111,7 +139,7 @@ export function useDriversOnMap(): DriverOnMap[] {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user])
+  }, [user, fetchDrivers])
 
   return drivers
 }

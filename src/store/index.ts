@@ -29,9 +29,16 @@ interface DriveState {
 
   // Stats
   reportsToday: number
+  lastReportDate: string | null
   weeklyReports: number
   totalMiles: number
   nearbyDrivers: number
+
+  // Voice
+  voiceActive: boolean
+  voiceRoomUrl: string | null
+  voiceRoomName: string | null
+  voiceParticipants: number
 
   // UI
   currentView: ViewType
@@ -54,6 +61,10 @@ interface DriveState {
   setWeeklyReports: (n: number) => void
   toggleGhostMode: () => void
   setLocation: (street: string | null, city: string | null) => void
+  // Voice actions
+  setVoiceRoom: (url: string, name: string) => void
+  leaveVoiceRoom: () => void
+  setVoiceParticipants: (n: number) => void
 }
 
 const POINTS: Record<ReportType, number> = {
@@ -68,6 +79,8 @@ const getRank = (score: number): Rank => {
   return 'Bronze'
 }
 
+const todayISO = () => new Date().toISOString().slice(0, 10)
+
 export const useStore = create<DriveState>()(
   devtools(
     persist(
@@ -77,10 +90,12 @@ export const useStore = create<DriveState>()(
         isSessionActive: false,
         ghostMode: false,
         currentStreet: null, currentCity: null,
-        reportsToday: 0, weeklyReports: 0,
-        totalMiles: 0, nearbyDrivers: 0,
+        reportsToday: 0, lastReportDate: null,
+        weeklyReports: 0, totalMiles: 0, nearbyDrivers: 0,
         currentView: 'home', notification: null,
         hasDmNotif: false,
+        // Voice — never persisted
+        voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0,
 
         setView: (view) => {
           set({ currentView: view })
@@ -90,10 +105,14 @@ export const useStore = create<DriveState>()(
         addReport: (type) => {
           const pts = POINTS[type]
           const newScore = get().score + pts
+          const today = todayISO()
+          const lastDate = get().lastReportDate
+          const reportsToday = lastDate === today ? get().reportsToday + 1 : 1
           set({
             score: newScore,
             rank: getRank(newScore),
-            reportsToday: get().reportsToday + 1,
+            reportsToday,
+            lastReportDate: today,
             weeklyReports: get().weeklyReports + 1,
           })
         },
@@ -120,6 +139,11 @@ export const useStore = create<DriveState>()(
 
         clearNotification: () => set({ notification: null }),
         setHasDmNotif: (v) => set({ hasDmNotif: v }),
+
+        // Voice
+        setVoiceRoom: (url, name) => set({ voiceActive: true, voiceRoomUrl: url, voiceRoomName: name }),
+        leaveVoiceRoom: () => set({ voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0 }),
+        setVoiceParticipants: (n) => set({ voiceParticipants: n }),
       }),
       {
         name: 'drivelink-v1',
@@ -127,6 +151,7 @@ export const useStore = create<DriveState>()(
           score: s.score, rank: s.rank, userId: s.userId,
           totalMiles: s.totalMiles, weeklyReports: s.weeklyReports,
           ghostMode: s.ghostMode,
+          reportsToday: s.reportsToday, lastReportDate: s.lastReportDate,
         }),
       }
     ),

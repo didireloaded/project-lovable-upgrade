@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from './useAuth'
+import { useStore } from '@/store'
 
 export interface Message {
   id:         string
@@ -21,6 +22,20 @@ export interface Channel {
   type:        string
 }
 
+const profileCache = new Map<string, { display_name: string | null; avatar_url: string | null }>()
+
+async function fetchProfile(userId: string) {
+  if (profileCache.has(userId)) return profileCache.get(userId)!
+  const { data } = await supabase
+    .from('profiles')
+    .select('display_name, avatar_url')
+    .eq('user_id', userId)
+    .single()
+  const p = { display_name: data?.display_name ?? null, avatar_url: data?.avatar_url ?? null }
+  profileCache.set(userId, p)
+  return p
+}
+
 export function useChannels() {
   const [channels, setChannels] = useState<Channel[]>([])
 
@@ -30,6 +45,16 @@ export function useChannels() {
       .select('id, name, description, type')
       .order('name')
       .then(({ data }) => { if (data) setChannels(data) })
+
+    const ch = supabase
+      .channel('channels-feed')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'channels' },
+        (payload) => setChannels((prev) => [...prev, payload.new as Channel])
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(ch) }
   }, [])
 
   return channels
@@ -39,6 +64,13 @@ export function useMessages(channelId: string | null) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading]   = useState(true)
   const { user }                = useAuth()
+  const setHasDmNotif           = useStore((s) => s.setHasDmNotif)
+  const currentView             = useStore((s) => s.currentView)
+  const isVisibleRef            = useRef(currentView === 'dm')
+
+  useEffect(() => {
+    isVisibleRef.current = currentView === 'dm'
+  }, [currentView])
 
   const fetchMessages = useCallback(async () => {
     if (!channelId) return
@@ -50,26 +82,18 @@ export function useMessages(channelId: string | null) {
       .limit(100)
 
     if (data) {
-      // Fetch profiles for all unique user_ids
       const userIds = [...new Set(data.map((m: any) => m.user_id))]
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds)
-
-      const profileMap = new Map(
-        (profiles ?? []).map((p: any) => [p.user_id, { display_name: p.display_name, avatar_url: p.avatar_url }])
-      )
-
+      await Promise.all(userIds.map(fetchProfile))
       setMessages(data.map((m: any) => ({
         ...m,
-        profile: profileMap.get(m.user_id) ?? null,
+        profile: profileCache.get(m.user_id) ?? null,
       })))
     }
     setLoading(false)
   }, [channelId])
 
   useEffect(() => {
+    setLoading(true)
     fetchMessages()
 
     if (!channelId) return
@@ -80,18 +104,18 @@ export function useMessages(channelId: string | null) {
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${channelId}` },
         async (payload) => {
           const msg = payload.new as any
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('user_id', msg.user_id)
-            .single()
-          setMessages((prev) => [...prev, { ...msg, profile: profile ?? null }])
+          const profile = await fetchProfile(msg.user_id)
+          setMessages((prev) => [...prev, { ...msg, profile }])
+
+          if (!isVisibleRef.current && msg.user_id !== user?.id) {
+            setHasDmNotif(true)
+          }
         }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [channelId, fetchMessages])
+  }, [channelId, fetchMessages, user, setHasDmNotif])
 
   const sendMessage = useCallback(async (content: string) => {
     if (!user || !channelId || !content.trim()) return
