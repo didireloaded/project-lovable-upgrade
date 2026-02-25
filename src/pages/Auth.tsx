@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Navigate } from 'react-router-dom'
+import { BackgroundPaths } from '@/components/ui/background-paths'
 
 const ERROR_MESSAGES: Record<string, string> = {
   'Invalid login credentials': 'Incorrect email or password.',
@@ -53,8 +54,10 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-5">
-      <div className="fixed inset-0 ambient-glow pointer-events-none z-0" />
+    <div className="min-h-screen flex items-center justify-center bg-background px-5 relative overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <BackgroundPaths title="" />
+      </div>
 
       <div className="relative z-10 w-full max-w-[380px]">
         <div className="text-center mb-8">
