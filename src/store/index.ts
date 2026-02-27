@@ -39,6 +39,7 @@ interface DriveState {
   voiceRoomUrl: string | null
   voiceRoomName: string | null
   voiceParticipants: number
+  activeVoiceRoom: { name: string; url: string } | null
 
   // UI
   currentView: ViewType
@@ -65,6 +66,7 @@ interface DriveState {
   setVoiceRoom: (url: string, name: string) => void
   leaveVoiceRoom: () => void
   setVoiceParticipants: (n: number) => void
+  setActiveVoiceRoom: (room: { name: string; url: string } | null) => void
 }
 
 const POINTS: Record<ReportType, number> = {
@@ -96,6 +98,7 @@ export const useStore = create<DriveState>()(
         hasDmNotif: false,
         // Voice — never persisted
         voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0,
+        activeVoiceRoom: null,
 
         setView: (view) => {
           set({ currentView: view })
@@ -141,9 +144,12 @@ export const useStore = create<DriveState>()(
         setHasDmNotif: (v) => set({ hasDmNotif: v }),
 
         // Voice
-        setVoiceRoom: (url, name) => set({ voiceActive: true, voiceRoomUrl: url, voiceRoomName: name }),
-        leaveVoiceRoom: () => set({ voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0 }),
+        setVoiceRoom: (url, name) => set({ voiceActive: true, voiceRoomUrl: url, voiceRoomName: name, activeVoiceRoom: { name, url } }),
+        leaveVoiceRoom: () => set({ voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0, activeVoiceRoom: null }),
         setVoiceParticipants: (n) => set({ voiceParticipants: n }),
+        setActiveVoiceRoom: (room) => room
+          ? set({ activeVoiceRoom: room, voiceActive: true, voiceRoomUrl: room.url, voiceRoomName: room.name })
+          : set({ activeVoiceRoom: null, voiceActive: false, voiceRoomUrl: null, voiceRoomName: null, voiceParticipants: 0 }),
       }),
       {
         name: 'drivelink-v1',
