@@ -8,7 +8,7 @@ import { getSpeedLimit } from "@/lib/speedLimit";
 import { BottomNav } from "@/components/drivelink/BottomNav";
 import { DriveToast } from "@/components/drivelink/Toast";
 import { ReportAlertOverlay } from "@/components/drivelink/ReportAlertOverlay";
-import { VoiceBar } from "@/components/drivelink/VoiceBar";
+import { PersistentVoiceBar } from "@/components/drivelink/PersistentVoiceBar";
 import { HomeView } from "@/components/drivelink/HomeView";
 import { MessagesView } from "@/components/drivelink/MessagesView";
 import { NewsView } from "@/components/drivelink/NewsView";
@@ -67,7 +67,7 @@ const Index = () => {
             <div className="flex-1 overflow-hidden flex flex-col relative">
               <DriveToast />
               <ReportAlertOverlay />
-              <VoiceBar />
+              <PersistentVoiceBar />
               {!isOnline && (
                 <div className="bg-warning/20 border-b border-warning/30 text-warning text-[0.65rem] text-center py-1.5 px-3 font-medium">
                   📴 Offline{pending > 0 ? ` — ${pending} report${pending > 1 ? 's' : ''} queued` : ''}
