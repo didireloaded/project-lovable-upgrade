@@ -2,3 +2,12 @@ project_id = "jvxkmmiccabufithxijh"
 
 [functions.fetch-news]
 verify_jwt = false
+
+[functions.create-voice-room]
+verify_jwt = false
+
+[functions.ai-assist]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
