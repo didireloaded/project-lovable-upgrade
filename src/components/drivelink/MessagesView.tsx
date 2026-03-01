@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useChannels, useMessages } from '@/hooks/useMessages'
 import { useAuth } from '@/hooks/useAuth'
 import { useStore } from '@/store'
+import { useVoiceRoom } from '@/hooks/useVoiceRoom'
 import { supabase } from '@/integrations/supabase/client'
 
 export function MessagesView() {
@@ -13,6 +14,7 @@ export function MessagesView() {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const showNotif = useStore((s) => s.showNotification)
+  const { joinByUrl, voiceActive } = useVoiceRoom()
 
   // Set first channel as default
   useEffect(() => {
@@ -150,9 +152,12 @@ export function MessagesView() {
                     </div>
                   </div>
                   <button
-                    onClick={() => showNotif('Voice rooms coming soon!', 'success')}
-                    className="bg-success/20 border-none rounded-lg px-3 py-1.5 text-success text-[0.65rem] font-semibold cursor-pointer font-display">
-                    Join
+                    onClick={() => room.daily_room_url ? joinByUrl(room.daily_room_url, room.name) : showNotif('No room URL available', 'error')}
+                    disabled={voiceActive}
+                    className={`border-none rounded-lg px-3 py-1.5 text-[0.65rem] font-semibold cursor-pointer font-display ${
+                      voiceActive ? 'bg-muted/20 text-muted-foreground' : 'bg-success/20 text-success'
+                    }`}>
+                    {voiceActive ? 'In call' : 'Join'}
                   </button>
                 </div>
               ))}
