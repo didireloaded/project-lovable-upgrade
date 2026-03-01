@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGeo } from "@/contexts/GeoContext";
 import { usePresence } from "@/hooks/usePresence";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useVoiceRoom } from "@/hooks/useVoiceRoom";
 import { getSpeedLimit } from "@/lib/speedLimit";
 import { BottomNav } from "@/components/drivelink/BottomNav";
 import { DriveToast } from "@/components/drivelink/Toast";
@@ -24,6 +25,8 @@ const Index = () => {
   useProfile();
   usePresence();
   const { isOnline, pending } = useOfflineSync();
+  // Mount useVoiceRoom at top level so the Daily.co singleton persists across tab switches
+  const voiceRoom = useVoiceRoom();
 
   useEffect(() => {
     if (!geo.lat || !geo.lng) return;
