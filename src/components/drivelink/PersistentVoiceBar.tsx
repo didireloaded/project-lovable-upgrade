@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '@/store'
+import { useVoiceRoom } from '@/hooks/useVoiceRoom'
 
 // ─── PersistentVoiceBar ────────────────────────────────────────────────────────
-// The Daily.co iframe is NEVER unmounted while a room is active.
 // Minimising/switching tabs only hides the full-screen wrapper via CSS.
 // This keeps the audio connection alive across all tab switches.
 export function PersistentVoiceBar() {
   const room    = useStore((s) => s.activeVoiceRoom)
-  const endRoom = useStore((s) => s.setActiveVoiceRoom)
+  const { leave } = useVoiceRoom()
   const [expanded, setExpanded] = useState(false)
 
   // Nothing at all if not in a room
@@ -52,7 +52,7 @@ export function PersistentVoiceBar() {
 
             {/* End call */}
             <button
-              onClick={(e) => { e.stopPropagation(); endRoom(null) }}
+              onClick={(e) => { e.stopPropagation(); leave() }}
               className="text-[0.6rem] bg-destructive/20 border border-destructive/30 text-destructive
                          rounded-full px-3 py-1.5 cursor-pointer font-display uppercase tracking-wider
                          hover:bg-destructive/30 transition-colors ml-2 flex-shrink-0"
@@ -106,7 +106,7 @@ export function PersistentVoiceBar() {
               Minimise
             </button>
             <button
-              onClick={() => { setExpanded(false); endRoom(null) }}
+              onClick={() => { setExpanded(false); leave() }}
               className="text-[0.62rem] bg-destructive/20 border border-destructive/30 text-destructive
                          rounded-full px-3 py-1.5 cursor-pointer font-display uppercase tracking-wider
                          hover:bg-destructive/30 transition-colors"
