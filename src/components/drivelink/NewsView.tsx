@@ -1,23 +1,40 @@
-import { useRoadNews } from '@/hooks/useRoadNews'
+import { useState } from 'react'
+import { useRoadNews, type NewsArticle } from '@/hooks/useRoadNews'
 
-const CAT: Record<string, { label: string; style: string }> = {
+const CATEGORIES: { key: NewsArticle['category'] | 'all'; label: string; style: string }[] = [
+  { key: 'all',      label: 'All',      style: 'bg-foreground/10 text-foreground' },
+  { key: 'accident', label: 'Accident',  style: 'bg-destructive/20 text-destructive' },
+  { key: 'traffic',  label: 'Traffic',   style: 'bg-warning/20 text-warning' },
+  { key: 'road',     label: 'Roads',     style: 'bg-purple/20 text-purple' },
+  { key: 'weather',  label: 'Weather',   style: 'bg-primary/20 text-primary' },
+  { key: 'general',  label: 'General',   style: 'bg-success/20 text-success' },
+]
+
+const CAT_STYLE: Record<string, { label: string; style: string }> = {
   accident: { label: 'Accident', style: 'bg-destructive/20 text-destructive' },
-  traffic:  { label: 'Traffic',  style: 'bg-warning/20 text-warning'         },
-  road:     { label: 'Roads',    style: 'bg-purple/20 text-purple'            },
-  weather:  { label: 'Weather',  style: 'bg-primary/20 text-primary'          },
-  general:  { label: 'News',     style: 'bg-success/20 text-success'          },
+  traffic:  { label: 'Traffic',  style: 'bg-warning/20 text-warning' },
+  road:     { label: 'Roads',    style: 'bg-purple/20 text-purple' },
+  weather:  { label: 'Weather',  style: 'bg-primary/20 text-primary' },
+  general:  { label: 'General',  style: 'bg-success/20 text-success' },
 }
 
 function timeAgo(dateStr: string) {
   const m = Math.round((Date.now() - new Date(dateStr).getTime()) / 60000)
-  if (m < 1)    return 'just now'
-  if (m < 60)   return `${m}m ago`
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
   if (m < 1440) return `${Math.floor(m / 60)}h ago`
   return `${Math.floor(m / 1440)}d ago`
 }
 
 export function NewsView() {
   const { articles, loading, error, refresh, lastFetch } = useRoadNews()
+  const [activeFilter, setActiveFilter] = useState<NewsArticle['category'] | 'all'>('all')
+
+  const filtered = activeFilter === 'all' ? articles : articles.filter((a) => a.category === activeFilter)
+
+  // Count per category
+  const counts: Record<string, number> = {}
+  articles.forEach((a) => { counts[a.category] = (counts[a.category] || 0) + 1 })
 
   return (
     <div className="flex flex-col h-full">
@@ -26,10 +43,10 @@ export function NewsView() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-base font-bold uppercase tracking-[0.08em] text-primary-foreground">
-              Road News
+              Namibia News
             </h2>
             <p className="text-[0.65rem] text-muted-foreground mt-0.5">
-              Live Namibia traffic &amp; road updates
+              National coverage · {articles.length} articles
               {lastFetch > 0 && (
                 <span className="ml-1.5 text-foreground/30">
                   · {timeAgo(new Date(lastFetch).toISOString())}
@@ -42,10 +59,11 @@ export function NewsView() {
               onClick={refresh}
               disabled={loading}
               className="text-[0.6rem] text-muted-foreground bg-foreground/5 border border-foreground/[0.08]
-                         rounded-full px-2.5 py-1.5 cursor-pointer hover:bg-foreground/10 transition-colors
+                         rounded-full px-2.5 py-1.5 cursor-pointer hover:bg-foreground/10 transition-all
                          disabled:opacity-40 font-display uppercase tracking-wider"
+              style={loading ? { animation: 'spin 1s linear infinite' } : {}}
             >
-              {loading ? '…' : '↻'}
+              ↻
             </button>
             <div className="flex items-center gap-1.5 text-[0.62rem] text-success">
               <span className="w-1.5 h-1.5 rounded-full bg-success"
@@ -54,10 +72,30 @@ export function NewsView() {
             </div>
           </div>
         </div>
+
+        {/* Category filter pills */}
+        <div className="flex gap-1.5 mt-3 overflow-x-auto hide-scrollbar">
+          {CATEGORIES.map((cat) => {
+            const isActive = activeFilter === cat.key
+            const count = cat.key === 'all' ? articles.length : (counts[cat.key] || 0)
+            return (
+              <button
+                key={cat.key}
+                onClick={() => setActiveFilter(cat.key)}
+                className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[0.58rem] font-display font-semibold uppercase tracking-wider border transition-all cursor-pointer ${
+                  isActive
+                    ? `${cat.style} border-current/30`
+                    : 'bg-foreground/5 border-panel-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {cat.label} {count > 0 && <span className="ml-0.5 opacity-60">{count}</span>}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 hide-scrollbar space-y-3">
-
         {/* Loading skeletons */}
         {loading && articles.length === 0 && (
           <>
@@ -77,10 +115,7 @@ export function NewsView() {
           <div className="flex flex-col items-center justify-center h-40 text-center">
             <div className="text-3xl mb-3">📡</div>
             <p className="text-muted-foreground text-sm">{error}</p>
-            <button
-              onClick={refresh}
-              className="mt-3 text-xs text-primary underline cursor-pointer bg-transparent border-none"
-            >
+            <button onClick={refresh} className="mt-3 text-xs text-primary underline cursor-pointer bg-transparent border-none">
               Try again
             </button>
           </div>
@@ -88,15 +123,14 @@ export function NewsView() {
 
         {/* Error banner (has fallback articles) */}
         {error && articles.length > 0 && (
-          <div className="text-[0.65rem] text-warning/80 bg-warning/10 border border-warning/20
-                          rounded-xl px-3 py-2">
+          <div className="text-[0.65rem] text-warning/80 bg-warning/10 border border-warning/20 rounded-xl px-3 py-2">
             ⚠️ Showing cached news · {error}
           </div>
         )}
 
         {/* Articles */}
-        {articles.map((article) => {
-          const cat = CAT[article.category] ?? CAT.general
+        {filtered.map((article) => {
+          const cat = CAT_STYLE[article.category] ?? CAT_STYLE.general
           return (
             <a
               key={article.id}
@@ -132,6 +166,12 @@ export function NewsView() {
             </a>
           )
         })}
+
+        {!loading && filtered.length === 0 && articles.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground py-6">
+            No articles in this category
+          </p>
+        )}
 
         {!loading && articles.length > 0 && (
           <p className="text-center text-[0.6rem] text-muted-foreground py-2">

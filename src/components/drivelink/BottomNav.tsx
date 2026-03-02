@@ -13,9 +13,10 @@ export function BottomNav() {
   const activeView = useStore((s) => s.currentView);
   const setView = useStore((s) => s.setView);
   const hasDmNotif = useStore((s) => s.hasDmNotif);
+  const voiceActive = useStore((s) => s.voiceActive);
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-panel-border z-50 px-2 pb-3.5 pt-2">
+    <div className="flex-shrink-0 bg-background/90 backdrop-blur-xl border-t border-panel-border z-50 px-2 pb-3.5 pt-2">
       <div className="flex justify-around">
         {tabs.map((tab) => {
           const isActive = activeView === tab.id;
@@ -31,11 +32,21 @@ export function BottomNav() {
             >
               <span className="text-lg">{tab.icon}</span>
               <span className="font-display text-[0.55rem] font-medium tracking-wider uppercase">{tab.label}</span>
+
+              {/* DM notification dot */}
               {tab.id === "dm" && hasDmNotif && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-destructive"
+                  style={{ animation: "pulse-dot 2s infinite" }}
+                />
+              )}
+
+              {/* Voice active indicator on Chat tab */}
+              {tab.id === "dm" && voiceActive && (
+                <span
+                  className="absolute top-0.5 left-2 w-2 h-2 rounded-full bg-success border border-background"
                   style={{ animation: "pulse-dot 2s infinite" }}
                 />
               )}
