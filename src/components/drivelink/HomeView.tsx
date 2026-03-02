@@ -42,7 +42,7 @@ export function HomeView() {
   const { syncScore } = useProfile();
   const geo            = useGeolocation();
   const driversOnMap   = useDriversOnMap();
-  const { voiceActive, voiceParticipants, join: joinVoice, leave: leaveVoice } = useVoiceRoom();
+  const { voiceActive, voiceParticipants, join: joinVoice } = useVoiceRoom();
 
   const speedStatus = speed > 120 ? "danger" : speed > 80 ? "warn" : "safe";
   const speedClass  = speedStatus === "danger" ? "speed-danger" : speedStatus === "warn" ? "speed-warn" : "speed-safe";
@@ -64,10 +64,10 @@ export function HomeView() {
     }
   }, [submitReport, syncScore, showNotification, geo.lat, geo.lng]);
 
+  // Toggle: join() now handles both join and leave internally
   const toggleVoice = useCallback(() => {
-    if (voiceActive) leaveVoice();
-    else joinVoice("drivers-general");
-  }, [voiceActive, joinVoice, leaveVoice]);
+    joinVoice();
+  }, [joinVoice]);
 
   const recentReports  = reports.slice(0, 5);
   const speedDisplay   = speed > 0 ? speed : "—";

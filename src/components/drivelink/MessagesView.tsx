@@ -48,31 +48,44 @@ export function MessagesView() {
     setInput('')
   }
 
-  const activeChannel = channels.find((c) => c.id === activeChannelId)
-
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 pt-10 pb-2 flex-shrink-0 bg-gradient-to-b from-background to-transparent">
-        <h2 className="font-display text-[1.4rem] font-bold tracking-[0.08em] uppercase text-primary-foreground">Messages</h2>
-        <p className="text-[0.72rem] text-muted-foreground mt-0.5">Connect with nearby drivers</p>
+        <h2 className="font-display text-[1.4rem] font-bold tracking-[0.08em] uppercase text-primary-foreground">Driver Community</h2>
+        <p className="text-[0.72rem] text-muted-foreground mt-0.5">Chat & voice with nearby drivers</p>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Channel tabs */}
-        <div className="flex gap-1.5 px-4 py-2 overflow-x-auto hide-scrollbar flex-shrink-0">
-          {channels.map((ch) => (
-            <button key={ch.id}
-              onClick={() => setActive(ch.id)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[0.62rem] font-display font-semibold uppercase tracking-wider border transition-all cursor-pointer ${
-                activeChannelId === ch.id
-                  ? 'bg-primary/20 border-primary/30 text-primary'
-                  : 'bg-foreground/5 border-panel-border text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {ch.name === 'traffic-board' ? '🚦' : ch.name === 'windhoek-drivers' ? '🗺' : '💬'} {ch.name.replace(/-/g, ' ')}
-            </button>
-          ))}
-        </div>
+        {/* Voice rooms section */}
+        {voiceRooms.length > 0 && (
+          <div className="px-4 py-2 flex-shrink-0">
+            <div className="card-label">🎙 Live Voice Rooms</div>
+            <div className="flex flex-col gap-2">
+              {voiceRooms.map((room) => (
+                <div key={room.id} className="flex items-center justify-between p-2.5 bg-success/[0.08] border border-success/20 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎙</span>
+                    <div>
+                      <div className="text-[0.75rem] text-success font-medium">{room.name}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: 'pulse-dot 2s infinite' }} />
+                        <span className="text-[0.58rem] text-success/70 font-display uppercase tracking-wider">Active</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => room.daily_room_url ? joinByUrl(room.daily_room_url, room.name) : showNotif('No room URL available', 'error')}
+                    disabled={voiceActive}
+                    className={`border-none rounded-lg px-3 py-1.5 text-[0.65rem] font-semibold cursor-pointer font-display ${
+                      voiceActive ? 'bg-muted/20 text-muted-foreground' : 'bg-success/20 text-success'
+                    }`}>
+                    {voiceActive ? 'In call' : 'Join'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 hide-scrollbar pb-2">
@@ -117,53 +130,22 @@ export function MessagesView() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input — hide for traffic-board */}
-        {activeChannel?.name !== 'traffic-board' && (
-          <div className="px-4 pb-20 flex gap-2 flex-shrink-0 border-t border-panel-border pt-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type a message…"
-              className="flex-1 bg-foreground/[0.06] border border-foreground/[0.12] rounded-xl px-3 py-2
-                         text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            />
-            <button onClick={handleSend}
-              disabled={!input.trim()}
-              className="bg-primary border-none rounded-xl px-4 py-2 text-primary-foreground text-sm font-semibold cursor-pointer disabled:opacity-40">
-              →
-            </button>
-          </div>
-        )}
-
-        {/* Voice rooms */}
-        {activeChannel?.name !== 'traffic-board' && (
-          <div className="px-4 pb-20 mt-1 flex-shrink-0">
-            <div className="card-label">Voice Rooms</div>
-            <div className="flex flex-col gap-2">
-              {voiceRooms.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-2">No active rooms</div>
-              ) : voiceRooms.map((room) => (
-                <div key={room.id} className="flex items-center justify-between p-2.5 bg-success/[0.08] border border-success/20 rounded-xl">
-                  <div>
-                    <div className="text-[0.75rem] text-success font-medium">🎙 {room.name}</div>
-                    <div className="text-[0.62rem] text-muted-foreground mt-0.5">
-                      {new Date(room.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => room.daily_room_url ? joinByUrl(room.daily_room_url, room.name) : showNotif('No room URL available', 'error')}
-                    disabled={voiceActive}
-                    className={`border-none rounded-lg px-3 py-1.5 text-[0.65rem] font-semibold cursor-pointer font-display ${
-                      voiceActive ? 'bg-muted/20 text-muted-foreground' : 'bg-success/20 text-success'
-                    }`}>
-                    {voiceActive ? 'In call' : 'Join'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Input */}
+        <div className="px-4 pb-20 flex gap-2 flex-shrink-0 border-t border-panel-border pt-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Type a message…"
+            className="flex-1 bg-foreground/[0.06] border border-foreground/[0.12] rounded-xl px-3 py-2
+                       text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          <button onClick={handleSend}
+            disabled={!input.trim()}
+            className="bg-primary border-none rounded-xl px-4 py-2 text-primary-foreground text-sm font-semibold cursor-pointer disabled:opacity-40">
+            →
+          </button>
+        </div>
       </div>
     </div>
   )

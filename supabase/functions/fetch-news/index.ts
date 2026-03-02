@@ -20,10 +20,9 @@ serve(async (req) => {
     const url =
       `https://newsdata.io/api/1/news` +
       `?apikey=${apiKey}` +
-      `&q=(road OR traffic OR accident OR crash OR pothole OR highway OR congestion OR roadblock) AND namibia` +
       `&country=na` +
       `&language=en` +
-      `&size=10`
+      `&size=50`
 
     const res = await fetch(url)
     const data = await res.json()

@@ -1,16 +1,14 @@
 /**
- * useVoiceRoom
- *
- * Manages a Daily.co audio-only call.
- * The DailyCall object is kept in a MODULE-LEVEL variable so it is never
- * destroyed when the component that called this hook unmounts (e.g. switching
- * from Home to Chat). Voice stays live across all views.
+ * useVoiceRoom — rebuilt for stability.
+ * - Uses driver display_name as room name
+ * - Clears old rooms before creating new ones
+ * - Toggle behaviour (tap again to leave)
+ * - Upsert with onConflict: created_by
  */
 import { useCallback, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore } from '@/store'
 
-// Extend window so TS knows about the Daily.co CDN global
 declare global {
   interface Window {
     DailyIframe: {
@@ -28,7 +26,6 @@ interface DailyCallObject {
   participants: () => Record<string, unknown>
 }
 
-// Singleton — survives component unmount / view changes
 let dailyCall: DailyCallObject | null = null
 
 function createDailyCall(): DailyCallObject {
@@ -37,12 +34,20 @@ function createDailyCall(): DailyCallObject {
       throw new Error('Daily.co SDK not loaded yet. Check index.html script tag.')
     }
     dailyCall = window.DailyIframe.createCallObject({
-      // Audio-only; no video tracks at all
       audioSource: true,
       videoSource: false,
     })
   }
   return dailyCall
+}
+
+/** Deactivate all previous rooms for this user */
+async function clearOldRooms(userId: string) {
+  await supabase
+    .from('voice_rooms')
+    .update({ is_active: false })
+    .eq('created_by', userId)
+    .eq('is_active', true)
 }
 
 export function useVoiceRoom() {
@@ -80,13 +85,38 @@ export function useVoiceRoom() {
     }
   }, [voiceActive, setParticipants])
 
-  const join = useCallback(async (roomName: string = 'drivers-general') => {
+  const join = useCallback(async () => {
+    // Toggle: if already active, leave instead
+    if (voiceActive) {
+      await leaveInternal()
+      return
+    }
+
     try {
       showNotification('🎙 Connecting to voice…', 'success')
 
-      // 1. Ask the edge function to create / get a Daily.co room
+      // Get current user + display name
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        showNotification('❌ You must be signed in', 'error')
+        return
+      }
+
+      // Fetch display name from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const driverName = profile?.display_name || user.email?.split('@')[0] || 'Driver'
+
+      // Clear old rooms for this user
+      await clearOldRooms(user.id)
+
+      // Create Daily.co room
       const { data, error } = await supabase.functions.invoke('create-voice-room', {
-        body: { name: roomName },
+        body: { name: driverName },
       })
 
       if (error || !data?.url) {
@@ -95,40 +125,41 @@ export function useVoiceRoom() {
         return
       }
 
-      // 2. Persist the room to supabase so MessagesView can list it
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('voice_rooms').insert({
-          name:           roomName,
-          daily_room_url: data.url,
-          is_active:      true,
-          created_by:     user.id,
-        }).maybeSingle()   // OK if it fails (may already exist)
-      }
+      // Upsert room record — one per driver
+      await supabase.from('voice_rooms').upsert({
+        name:           driverName,
+        daily_room_url: data.url,
+        is_active:      true,
+        created_by:     user.id,
+      }, { onConflict: 'created_by' })
 
-      // 3. Join via Daily.co call object (audio only)
+      // Join via Daily.co
       const call = createDailyCall()
-
       await call.join({
         url:            data.url,
         startVideoOff:  true,
         startAudioOff:  false,
       })
 
-      setVoiceRoom(data.url, data.name ?? roomName)
+      setVoiceRoom(data.url, driverName)
       showNotification('🎙 Connected to voice room!', 'success')
     } catch (err: any) {
       console.error('useVoiceRoom join error:', err)
       showNotification(`❌ ${err?.message ?? 'Voice connection failed'}`, 'error')
     }
-  }, [setVoiceRoom, showNotification])
+  }, [voiceActive, setVoiceRoom, showNotification])
 
-  const leave = useCallback(async () => {
+  const leaveInternal = async () => {
     try {
       if (dailyCall) {
         await dailyCall.leave()
         await dailyCall.destroy()
         dailyCall = null
+      }
+      // Mark room inactive
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await clearOldRooms(user.id)
       }
     } catch (err) {
       console.error('useVoiceRoom leave error:', err)
@@ -136,13 +167,16 @@ export function useVoiceRoom() {
       leaveVoiceRoom()
       showNotification('🔕 Left voice room', 'warning')
     }
+  }
+
+  const leave = useCallback(async () => {
+    await leaveInternal()
   }, [leaveVoiceRoom, showNotification])
 
   const joinByUrl = useCallback(async (url: string, name: string) => {
     try {
       showNotification('🎙 Joining room…', 'success')
       const call = createDailyCall()
-
       await call.join({ url, startVideoOff: true, startAudioOff: false })
       setVoiceRoom(url, name)
       showNotification('🎙 Joined voice room!', 'success')
