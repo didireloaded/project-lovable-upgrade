@@ -12,7 +12,7 @@ export function DriveToast() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          className={`absolute top-11 left-4 right-4 z-[200] rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2 ${
+          className={`absolute top-3 left-4 right-4 md:left-auto md:right-6 md:w-80 z-[200] rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2 ${
             notification.type === "warning" || notification.type === "error"
               ? "bg-warning/15 border border-warning/35 text-warning"
               : "bg-success/15 border border-success/35 text-success"

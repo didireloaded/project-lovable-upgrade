@@ -16,17 +16,14 @@ export function MessagesView() {
   const showNotif = useStore((s) => s.showNotification)
   const { joinByUrl, voiceActive } = useVoiceRoom()
 
-  // Set first channel as default
   useEffect(() => {
     if (channels.length && !activeChannelId) setActive(channels[0].id)
   }, [channels, activeChannelId])
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Load voice rooms
   useEffect(() => {
     supabase.from('voice_rooms').select('*').eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -50,101 +47,106 @@ export function MessagesView() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-10 pb-2 flex-shrink-0 bg-gradient-to-b from-background to-transparent">
-        <h2 className="font-display text-[1.4rem] font-bold tracking-[0.08em] uppercase text-primary-foreground">Driver Community</h2>
+      <div className="px-4 md:px-6 lg:px-8 pt-6 md:pt-5 pb-2 flex-shrink-0 bg-gradient-to-b from-background to-transparent">
+        <h2 className="font-display text-[1.4rem] md:text-lg font-bold tracking-[0.08em] uppercase text-primary-foreground">Driver Community</h2>
         <p className="text-[0.72rem] text-muted-foreground mt-0.5">Chat & voice with nearby drivers</p>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Voice rooms section */}
-        {voiceRooms.length > 0 && (
-          <div className="px-4 py-2 flex-shrink-0">
-            <div className="card-label">🎙 Live Voice Rooms</div>
-            <div className="flex flex-col gap-2">
-              {voiceRooms.map((room) => (
-                <div key={room.id} className="flex items-center justify-between p-2.5 bg-success/[0.08] border border-success/20 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎙</span>
-                    <div>
-                      <div className="text-[0.75rem] text-success font-medium">{room.name}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: 'pulse-dot 2s infinite' }} />
-                        <span className="text-[0.58rem] text-success/70 font-display uppercase tracking-wider">Active</span>
+      {/* Desktop: side-by-side voice rooms + chat */}
+      <div className="flex-1 overflow-hidden flex flex-col md:flex-row md:gap-4 md:px-6 lg:px-8">
+        {/* Voice rooms sidebar (desktop) / top section (mobile) */}
+        <div className={`flex-shrink-0 ${voiceRooms.length > 0 ? 'md:w-64 lg:w-72' : 'md:w-0'}`}>
+          {voiceRooms.length > 0 && (
+            <div className="px-4 md:px-0 py-2">
+              <div className="card-label">🎙 Live Voice Rooms</div>
+              <div className="flex flex-col gap-2">
+                {voiceRooms.map((room) => (
+                  <div key={room.id} className="flex items-center justify-between p-2.5 bg-success/[0.08] border border-success/20 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎙</span>
+                      <div>
+                        <div className="text-[0.75rem] text-success font-medium">{room.name}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: 'pulse-dot 2s infinite' }} />
+                          <span className="text-[0.58rem] text-success/70 font-display uppercase tracking-wider">Active</span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={() => room.daily_room_url ? joinByUrl(room.daily_room_url, room.name) : showNotif('No room URL available', 'error')}
+                      disabled={voiceActive}
+                      className={`border-none rounded-lg px-3 py-1.5 text-[0.65rem] font-semibold cursor-pointer font-display ${
+                        voiceActive ? 'bg-muted/20 text-muted-foreground' : 'bg-success/20 text-success'
+                      }`}>
+                      {voiceActive ? 'In call' : 'Join'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => room.daily_room_url ? joinByUrl(room.daily_room_url, room.name) : showNotif('No room URL available', 'error')}
-                    disabled={voiceActive}
-                    className={`border-none rounded-lg px-3 py-1.5 text-[0.65rem] font-semibold cursor-pointer font-display ${
-                      voiceActive ? 'bg-muted/20 text-muted-foreground' : 'bg-success/20 text-success'
-                    }`}>
-                    {voiceActive ? 'In call' : 'Join'}
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 hide-scrollbar pb-2">
-          {loading ? (
-            <div className="text-center text-xs text-muted-foreground py-6">Loading…</div>
-          ) : messages.length === 0 ? (
-            <div className="text-center text-xs text-muted-foreground py-6">
-              No messages yet. Start the conversation!
-            </div>
-          ) : (
-            messages.map((msg) => {
-              const isOwn = msg.user_id === user?.id
-              return (
-                <div key={msg.id} className={`flex gap-2 mb-2.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-primary/30 overflow-hidden">
-                    {msg.profile?.avatar_url
-                      ? <img src={msg.profile.avatar_url} className="w-full h-full object-cover" alt="" />
-                      : <span>{(msg.profile?.display_name?.[0] ?? '?').toUpperCase()}</span>
-                    }
-                  </div>
-                  <div className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
-                    {!isOwn && (
-                      <span className="text-[0.58rem] text-muted-foreground px-1">
-                        {msg.profile?.display_name ?? 'Driver'}
-                      </span>
-                    )}
-                    <div className={`px-3 py-2 rounded-2xl text-[0.75rem] leading-relaxed ${
-                      isOwn
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-foreground/10 text-foreground rounded-tl-sm'
-                    }`}>
-                      {msg.content}
-                    </div>
-                    <span className="text-[0.55rem] text-muted-foreground px-1">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                </div>
-              )
-            })
           )}
-          <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
-        <div className="px-4 pb-20 flex gap-2 flex-shrink-0 border-t border-panel-border pt-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type a message…"
-            className="flex-1 bg-foreground/[0.06] border border-foreground/[0.12] rounded-xl px-3 py-2
-                       text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          <button onClick={handleSend}
-            disabled={!input.trim()}
-            className="bg-primary border-none rounded-xl px-4 py-2 text-primary-foreground text-sm font-semibold cursor-pointer disabled:opacity-40">
-            →
-          </button>
+        {/* Messages area */}
+        <div className="flex-1 overflow-hidden flex flex-col min-w-0">
+          <div className="flex-1 overflow-y-auto px-4 md:px-0 hide-scrollbar pb-2">
+            {loading ? (
+              <div className="text-center text-xs text-muted-foreground py-6">Loading…</div>
+            ) : messages.length === 0 ? (
+              <div className="text-center text-xs text-muted-foreground py-6">
+                No messages yet. Start the conversation!
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const isOwn = msg.user_id === user?.id
+                return (
+                  <div key={msg.id} className={`flex gap-2 mb-2.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-primary/30 overflow-hidden">
+                      {msg.profile?.avatar_url
+                        ? <img src={msg.profile.avatar_url} className="w-full h-full object-cover" alt="" />
+                        : <span>{(msg.profile?.display_name?.[0] ?? '?').toUpperCase()}</span>
+                      }
+                    </div>
+                    <div className={`max-w-[75%] md:max-w-[60%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
+                      {!isOwn && (
+                        <span className="text-[0.58rem] text-muted-foreground px-1">
+                          {msg.profile?.display_name ?? 'Driver'}
+                        </span>
+                      )}
+                      <div className={`px-3 py-2 rounded-2xl text-[0.75rem] leading-relaxed ${
+                        isOwn
+                          ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                          : 'bg-foreground/10 text-foreground rounded-tl-sm'
+                      }`}>
+                        {msg.content}
+                      </div>
+                      <span className="text-[0.55rem] text-muted-foreground px-1">
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="px-4 md:px-0 pb-20 md:pb-4 flex gap-2 flex-shrink-0 border-t border-panel-border pt-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Type a message…"
+              className="flex-1 bg-foreground/[0.06] border border-foreground/[0.12] rounded-xl px-3 py-2
+                         text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button onClick={handleSend}
+              disabled={!input.trim()}
+              className="bg-primary border-none rounded-xl px-4 py-2 text-primary-foreground text-sm font-semibold cursor-pointer disabled:opacity-40">
+              →
+            </button>
+          </div>
         </div>
       </div>
     </div>

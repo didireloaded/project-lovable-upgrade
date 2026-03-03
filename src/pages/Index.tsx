@@ -7,6 +7,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useVoiceRoom } from "@/hooks/useVoiceRoom";
 import { getSpeedLimit } from "@/lib/speedLimit";
 import { BottomNav } from "@/components/drivelink/BottomNav";
+import { DesktopSidebar } from "@/components/drivelink/DesktopSidebar";
 import { DriveToast } from "@/components/drivelink/Toast";
 import { ReportAlertOverlay } from "@/components/drivelink/ReportAlertOverlay";
 import { PersistentVoiceBar } from "@/components/drivelink/PersistentVoiceBar";
@@ -38,26 +39,35 @@ const Index = () => {
   ]);
 
   return (
-    <div className="w-full max-w-[430px] h-[100dvh] mx-auto bg-background flex flex-col relative overflow-hidden">
-      <DriveToast />
-      <ReportAlertOverlay />
-      <PersistentVoiceBar />
+    <div className="flex w-full h-[100dvh] bg-background overflow-hidden">
+      {/* Desktop sidebar — hidden on mobile */}
+      <DesktopSidebar />
 
-      {!isOnline && (
-        <div className="bg-warning/20 border-b border-warning/30 text-warning text-[0.65rem] text-center py-1.5 px-3 font-medium flex-shrink-0">
-          📴 Offline{pending > 0 ? ` — ${pending} report${pending > 1 ? 's' : ''} queued` : ''}
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col h-[100dvh] relative overflow-hidden">
+        <DriveToast />
+        <ReportAlertOverlay />
+        <PersistentVoiceBar />
+
+        {!isOnline && (
+          <div className="bg-warning/20 border-b border-warning/30 text-warning text-[0.65rem] text-center py-1.5 px-3 font-medium flex-shrink-0">
+            📴 Offline{pending > 0 ? ` — ${pending} report${pending > 1 ? 's' : ''} queued` : ''}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-hidden flex flex-col relative">
+          {activeView === "home" && <HomeView />}
+          {activeView === "dm" && <MessagesView />}
+          {activeView === "news" && <NewsView />}
+          {activeView === "weather" && <WeatherView />}
+          {activeView === "help" && <HelpView />}
         </div>
-      )}
 
-      <div className="flex-1 overflow-hidden flex flex-col relative">
-        {activeView === "home" && <HomeView />}
-        {activeView === "dm" && <MessagesView />}
-        {activeView === "news" && <NewsView />}
-        {activeView === "weather" && <WeatherView />}
-        {activeView === "help" && <HelpView />}
+        {/* Bottom nav — mobile only */}
+        <div className="md:hidden">
+          <BottomNav />
+        </div>
       </div>
-
-      <BottomNav />
     </div>
   );
 };
