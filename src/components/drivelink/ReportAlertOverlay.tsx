@@ -14,7 +14,7 @@ export function ReportAlertOverlay() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="absolute top-10 left-3 right-3 z-[150]"
+          className="absolute top-10 left-3 right-3 md:left-auto md:right-6 md:w-96 z-[150]"
         >
           <NotificationCard
             title="Nearby Alert"

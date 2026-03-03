@@ -64,7 +64,6 @@ export function HomeView() {
     }
   }, [submitReport, syncScore, showNotification, geo.lat, geo.lng]);
 
-  // Toggle: join() now handles both join and leave internally
   const toggleVoice = useCallback(() => {
     joinVoice();
   }, [joinVoice]);
@@ -74,15 +73,16 @@ export function HomeView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="header-gradient px-5 pt-10 pb-4 relative overflow-hidden flex-shrink-0">
+      {/* Header — full width */}
+      <div className="header-gradient px-5 pt-6 md:pt-5 pb-4 relative overflow-hidden flex-shrink-0">
         <div className="absolute inset-0 opacity-30" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='100' cy='100' r='2' fill='rgba(255,255,255,0.06)'/%3E%3Ccircle cx='30' cy='60' r='1.5' fill='rgba(255,255,255,0.04)'/%3E%3Ccircle cx='160' cy='40' r='1' fill='rgba(255,255,255,0.04)'/%3E%3C/svg%3E")`
         }} />
-        <h1 className="font-display text-[1.9rem] font-bold text-center tracking-[0.1em] uppercase relative z-10 text-primary-foreground mb-3.5">
+        {/* Show title only on mobile (sidebar has it on desktop) */}
+        <h1 className="md:hidden font-display text-[1.9rem] font-bold text-center tracking-[0.1em] uppercase relative z-10 text-primary-foreground mb-3.5">
           DriveLink
         </h1>
-        <div className="relative z-10 flex justify-between items-center bg-foreground/10 border border-foreground/15 rounded-full px-5 py-2.5 backdrop-blur-lg">
+        <div className="relative z-10 flex justify-between items-center bg-foreground/10 border border-foreground/15 rounded-full px-5 py-2.5 backdrop-blur-lg max-w-xl mx-auto md:mx-0">
           <div className="text-center flex-1">
             <div className="font-display text-2xl font-bold text-primary-foreground leading-none">{score}</div>
             <div className="text-[0.62rem] text-foreground/60 tracking-[0.1em] mt-0.5">SCORE</div>
@@ -101,152 +101,158 @@ export function HomeView() {
       </div>
 
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 hide-scrollbar">
-        {/* Map */}
-        <div className="h-48 rounded-[14px] relative overflow-hidden mb-3.5">
-          <DriveMap
-            lat={geo.lat}
-            lng={geo.lng}
-            accuracy={geo.accuracy}
-            reports={reports}
-            drivers={driversOnMap}
-            ghostMode={ghostMode}
-          />
-
-          {geo.loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-5 h-5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
-                <span className="text-white/60 text-xs">Getting GPS…</span>
-              </div>
-            </div>
-          )}
-
-          {geo.error && !geo.loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
-              <p className="text-white/50 text-xs text-center px-6">⚠️ {geo.error}</p>
-            </div>
-          )}
-
-          <div className="absolute top-2.5 left-2.5 z-10 scale-[0.85] origin-top-left">
-            <LocationTag
-              city={currentCity ?? 'Windhoek'}
-              country="NA"
-              timezone="CAT"
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pt-4 pb-20 md:pb-6 hide-scrollbar">
+        {/* Desktop: Map + Voice side by side */}
+        <div className="flex flex-col lg:flex-row gap-4 mb-3.5">
+          {/* Map */}
+          <div className="h-48 md:h-64 lg:h-80 lg:flex-1 rounded-[14px] relative overflow-hidden">
+            <DriveMap
+              lat={geo.lat}
+              lng={geo.lng}
+              accuracy={geo.accuracy}
+              reports={reports}
+              drivers={driversOnMap}
+              ghostMode={ghostMode}
             />
-          </div>
 
-          <button
-            onClick={toggleGhost}
-            className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all z-10 ${
-              ghostMode
-                ? 'bg-purple/20 border-purple/30 text-purple'
-                : 'bg-black/70 border-white/10 text-white/70'
-            }`}
-          >
-            {ghostMode ? '👻 Ghost' : '👁 Visible'}
-          </button>
-
-          {geo.accuracy && (
-            <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10 z-10">
-              ±{Math.round(geo.accuracy)}m
-            </div>
-          )}
-        </div>
-
-        {/* Voice Chat */}
-        <div className="flex justify-center my-1 mb-3.5">
-          <div className="text-center">
-            <div className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.1em] mb-2 font-display">Voice Chat</div>
-            <div className="relative inline-block">
-              <button
-                onClick={toggleVoice}
-                className={`w-[70px] h-[70px] rounded-full border-2 flex items-center justify-center text-2xl transition-transform duration-200 hover:scale-[1.08] ${
-                  voiceActive
-                    ? "bg-gradient-to-br from-secondary to-secondary/80 border-secondary"
-                    : "bg-gradient-to-br from-[hsl(220_50%_30%)] to-[hsl(220_60%_16%)] border-foreground/15"
-                }`}
-                style={voiceActive ? { animation: "voice-pulse 1.5s infinite" } : {}}
-              >
-                🎙
-              </button>
-              {voiceActive && (
-                <span className="absolute -inset-2 rounded-full border-2 border-secondary/30" style={{ animation: "ring-expand 2s infinite" }} />
-              )}
-            </div>
-            <div className={`text-[0.62rem] mt-1.5 ${voiceActive ? "text-secondary" : "text-muted-foreground"}`}>
-              {voiceActive ? `🔴 ${voiceParticipants} in room` : "Tap to connect"}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Report */}
-        <div className="glass-card">
-          <div className="card-label">
-            Quick Report
-            <span className="text-success text-[0.62rem] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: "pulse-dot 2s infinite" }} />
-              Tap to report
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2.5">
-            {alertButtons.map((btn) => (
-              <button
-                key={btn.type}
-                onClick={() => handleReport(btn.type)}
-                className={`aspect-square rounded-[14px] flex flex-col items-center justify-center gap-1 bg-gradient-to-br ${btn.cls} shadow-lg text-xl active:scale-[0.93] transition-transform relative overflow-hidden`}
-              >
-                {btn.icon}
-                <span className="text-[0.5rem] text-primary-foreground/80 uppercase tracking-wider font-display font-semibold">{btn.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-2.5 px-3 py-2 bg-primary/[0.08] border border-primary/[0.18] rounded-[10px] text-[0.65rem] text-primary flex items-center gap-1.5">
-            💡 Accurate reports help all drivers stay safe!
-          </div>
-        </div>
-
-        {/* Driver Stats */}
-        <div className="glass-card mt-3.5">
-          <div className="card-label">
-            Driver Stats
-            <span className="text-success text-[0.62rem] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: "pulse-dot 2s infinite" }} />
-              Live data
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { icon: "📍", value: reportsToday, label: "Reports Today", change: "Keep reporting!", color: "text-success" },
-              { icon: "👥", value: nearbyDrivers || "—", label: "Nearby Drivers", change: "Active now", color: "text-primary" },
-              { icon: "📈", value: weeklyReports, label: "Weekly Reports", change: "This week", color: "text-secondary" },
-              { icon: "🏅", value: rank, label: "Driver Rank", change: `Score: ${score}`, color: "text-warning" },
-            ].map((stat, i) => (
-              <div key={i} className="bg-foreground/[0.04] border border-foreground/[0.08] rounded-[14px] p-3 text-center hover:-translate-y-0.5 transition-transform cursor-pointer">
-                <div className="text-lg mb-1">{stat.icon}</div>
-                <div className={`font-display text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                <div className="text-[0.6rem] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</div>
-                <div className="text-[0.57rem] text-foreground/35 mt-1">{stat.change}</div>
+            {geo.loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
+                  <span className="text-white/60 text-xs">Getting GPS…</span>
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="mt-3 px-3 py-2.5 bg-primary/[0.06] border border-primary/15 rounded-xl">
-            <div className="flex justify-between text-[0.62rem] text-primary mb-1.5">
-              <span>Daily Goal Progress</span>
-              <span>{reportsToday}/10</span>
-            </div>
-            <div className="h-1.5 bg-primary/20 rounded-full">
-              <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5 }}
+            )}
+
+            {geo.error && !geo.loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-[14px] z-10">
+                <p className="text-white/50 text-xs text-center px-6">⚠️ {geo.error}</p>
+              </div>
+            )}
+
+            <div className="absolute top-2.5 left-2.5 z-10 scale-[0.85] origin-top-left">
+              <LocationTag
+                city={currentCity ?? 'Windhoek'}
+                country="NA"
+                timezone="CAT"
               />
+            </div>
+
+            <button
+              onClick={toggleGhost}
+              className={`absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded-xl text-[0.62rem] font-medium border transition-all z-10 ${
+                ghostMode
+                  ? 'bg-purple/20 border-purple/30 text-purple'
+                  : 'bg-black/70 border-white/10 text-white/70'
+              }`}
+            >
+              {ghostMode ? '👻 Ghost' : '👁 Visible'}
+            </button>
+
+            {geo.accuracy && (
+              <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur text-white text-[0.55rem] px-2 py-1 rounded-lg border border-white/10 z-10">
+                ±{Math.round(geo.accuracy)}m
+              </div>
+            )}
+          </div>
+
+          {/* Voice Chat — stacks below on mobile, beside map on lg */}
+          <div className="flex justify-center lg:justify-start lg:flex-col lg:items-center lg:w-32 my-1 lg:my-0">
+            <div className="text-center">
+              <div className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.1em] mb-2 font-display">Voice Chat</div>
+              <div className="relative inline-block">
+                <button
+                  onClick={toggleVoice}
+                  className={`w-[70px] h-[70px] rounded-full border-2 flex items-center justify-center text-2xl transition-transform duration-200 hover:scale-[1.08] ${
+                    voiceActive
+                      ? "bg-gradient-to-br from-secondary to-secondary/80 border-secondary"
+                      : "bg-gradient-to-br from-[hsl(220_50%_30%)] to-[hsl(220_60%_16%)] border-foreground/15"
+                  }`}
+                  style={voiceActive ? { animation: "voice-pulse 1.5s infinite" } : {}}
+                >
+                  🎙
+                </button>
+                {voiceActive && (
+                  <span className="absolute -inset-2 rounded-full border-2 border-secondary/30" style={{ animation: "ring-expand 2s infinite" }} />
+                )}
+              </div>
+              <div className={`text-[0.62rem] mt-1.5 ${voiceActive ? "text-secondary" : "text-muted-foreground"}`}>
+                {voiceActive ? `🔴 ${voiceParticipants} in room` : "Tap to connect"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: Quick Report + Stats side by side */}
+        <div className="flex flex-col md:flex-row gap-3.5">
+          {/* Quick Report */}
+          <div className="glass-card md:flex-1">
+            <div className="card-label">
+              Quick Report
+              <span className="text-success text-[0.62rem] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: "pulse-dot 2s infinite" }} />
+                Tap to report
+              </span>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2.5">
+              {alertButtons.map((btn) => (
+                <button
+                  key={btn.type}
+                  onClick={() => handleReport(btn.type)}
+                  className={`aspect-square rounded-[14px] flex flex-col items-center justify-center gap-1 bg-gradient-to-br ${btn.cls} shadow-lg text-xl active:scale-[0.93] transition-transform relative overflow-hidden`}
+                >
+                  {btn.icon}
+                  <span className="text-[0.5rem] text-primary-foreground/80 uppercase tracking-wider font-display font-semibold">{btn.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-2.5 px-3 py-2 bg-primary/[0.08] border border-primary/[0.18] rounded-[10px] text-[0.65rem] text-primary flex items-center gap-1.5">
+              💡 Accurate reports help all drivers stay safe!
+            </div>
+          </div>
+
+          {/* Driver Stats */}
+          <div className="glass-card md:flex-1">
+            <div className="card-label">
+              Driver Stats
+              <span className="text-success text-[0.62rem] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" style={{ animation: "pulse-dot 2s infinite" }} />
+                Live data
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: "📍", value: reportsToday, label: "Reports Today", change: "Keep reporting!", color: "text-success" },
+                { icon: "👥", value: nearbyDrivers || "—", label: "Nearby Drivers", change: "Active now", color: "text-primary" },
+                { icon: "📈", value: weeklyReports, label: "Weekly Reports", change: "This week", color: "text-secondary" },
+                { icon: "🏅", value: rank, label: "Driver Rank", change: `Score: ${score}`, color: "text-warning" },
+              ].map((stat, i) => (
+                <div key={i} className="bg-foreground/[0.04] border border-foreground/[0.08] rounded-[14px] p-3 text-center hover:-translate-y-0.5 transition-transform cursor-pointer">
+                  <div className="text-lg mb-1">{stat.icon}</div>
+                  <div className={`font-display text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                  <div className="text-[0.6rem] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</div>
+                  <div className="text-[0.57rem] text-foreground/35 mt-1">{stat.change}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 px-3 py-2.5 bg-primary/[0.06] border border-primary/15 rounded-xl">
+              <div className="flex justify-between text-[0.62rem] text-primary mb-1.5">
+                <span>Daily Goal Progress</span>
+                <span>{reportsToday}/10</span>
+              </div>
+              <div className="h-1.5 bg-primary/20 rounded-full">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Live Activity */}
-        <div className="glass-card mt-3.5">
+        <div className="glass-card mt-3.5 max-w-3xl">
           <div className="card-label">
             Live Activity
             <span className="text-success text-[0.62rem] flex items-center gap-1">

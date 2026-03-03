@@ -32,17 +32,16 @@ export function NewsView() {
 
   const filtered = activeFilter === 'all' ? articles : articles.filter((a) => a.category === activeFilter)
 
-  // Count per category
   const counts: Record<string, number> = {}
   articles.forEach((a) => { counts[a.category] = (counts[a.category] || 0) + 1 })
 
   return (
     <div className="flex flex-col h-full">
       {/* Sub-header */}
-      <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-foreground/[0.08]">
-        <div className="flex items-center justify-between">
+      <div className="flex-shrink-0 px-4 md:px-6 lg:px-8 pt-4 md:pt-5 pb-3 border-b border-foreground/[0.08]">
+        <div className="flex items-center justify-between max-w-4xl">
           <div>
-            <h2 className="font-display text-base font-bold uppercase tracking-[0.08em] text-primary-foreground">
+            <h2 className="font-display text-base md:text-lg font-bold uppercase tracking-[0.08em] text-primary-foreground">
               Namibia News
             </h2>
             <p className="text-[0.65rem] text-muted-foreground mt-0.5">
@@ -74,7 +73,7 @@ export function NewsView() {
         </div>
 
         {/* Category filter pills */}
-        <div className="flex gap-1.5 mt-3 overflow-x-auto hide-scrollbar">
+        <div className="flex gap-1.5 mt-3 overflow-x-auto hide-scrollbar max-w-4xl">
           {CATEGORIES.map((cat) => {
             const isActive = activeFilter === cat.key
             const count = cat.key === 'all' ? articles.length : (counts[cat.key] || 0)
@@ -95,11 +94,11 @@ export function NewsView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 hide-scrollbar space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pt-3 pb-20 md:pb-6 hide-scrollbar">
         {/* Loading skeletons */}
         {loading && articles.length === 0 && (
-          <>
-            {[1, 2, 3, 4, 5].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="p-4 border border-foreground/[0.08] rounded-2xl space-y-2.5">
                 <div className="h-3 w-16 bg-foreground/[0.06] rounded-full animate-pulse" />
                 <div className="h-4 bg-foreground/[0.06] rounded animate-pulse" />
@@ -107,7 +106,7 @@ export function NewsView() {
                 <div className="h-3 w-28 bg-foreground/[0.04] rounded animate-pulse" />
               </div>
             ))}
-          </>
+          </div>
         )}
 
         {/* Error with no fallback */}
@@ -123,49 +122,51 @@ export function NewsView() {
 
         {/* Error banner (has fallback articles) */}
         {error && articles.length > 0 && (
-          <div className="text-[0.65rem] text-warning/80 bg-warning/10 border border-warning/20 rounded-xl px-3 py-2">
+          <div className="text-[0.65rem] text-warning/80 bg-warning/10 border border-warning/20 rounded-xl px-3 py-2 mb-3 max-w-5xl">
             ⚠️ Showing cached news · {error}
           </div>
         )}
 
-        {/* Articles */}
-        {filtered.map((article) => {
-          const cat = CAT_STYLE[article.category] ?? CAT_STYLE.general
-          return (
-            <a
-              key={article.id}
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-4 border border-foreground/[0.08] rounded-2xl no-underline
-                         hover:bg-foreground/[0.04] hover:border-foreground/20 transition-all
-                         active:scale-[0.99]"
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <span className={`flex-shrink-0 text-[0.58rem] px-2.5 py-1 rounded-full
-                                 font-display font-bold uppercase tracking-wider ${cat.style}`}>
-                  {cat.label}
-                </span>
-                <span className="text-[0.6rem] text-muted-foreground flex-shrink-0 mt-0.5">
-                  {timeAgo(article.published)}
-                </span>
-              </div>
-              <div className="text-[0.88rem] text-foreground leading-snug font-medium mb-1.5">
-                {article.title}
-              </div>
-              {article.description && (
-                <div className="text-xs text-muted-foreground leading-snug line-clamp-2">
-                  {article.description}
+        {/* Articles — responsive grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl">
+          {filtered.map((article) => {
+            const cat = CAT_STYLE[article.category] ?? CAT_STYLE.general
+            return (
+              <a
+                key={article.id}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border border-foreground/[0.08] rounded-2xl no-underline
+                           hover:bg-foreground/[0.04] hover:border-foreground/20 transition-all
+                           active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className={`flex-shrink-0 text-[0.58rem] px-2.5 py-1 rounded-full
+                                   font-display font-bold uppercase tracking-wider ${cat.style}`}>
+                    {cat.label}
+                  </span>
+                  <span className="text-[0.6rem] text-muted-foreground flex-shrink-0 mt-0.5">
+                    {timeAgo(article.published)}
+                  </span>
                 </div>
-              )}
-              <div className="text-[0.6rem] text-foreground/30 mt-2 flex items-center gap-1.5">
-                <span>{article.source}</span>
-                <span>·</span>
-                <span className="text-primary/50">Read full story →</span>
-              </div>
-            </a>
-          )
-        })}
+                <div className="text-[0.88rem] text-foreground leading-snug font-medium mb-1.5">
+                  {article.title}
+                </div>
+                {article.description && (
+                  <div className="text-xs text-muted-foreground leading-snug line-clamp-2">
+                    {article.description}
+                  </div>
+                )}
+                <div className="text-[0.6rem] text-foreground/30 mt-2 flex items-center gap-1.5">
+                  <span>{article.source}</span>
+                  <span>·</span>
+                  <span className="text-primary/50">Read full story →</span>
+                </div>
+              </a>
+            )
+          })}
+        </div>
 
         {!loading && filtered.length === 0 && articles.length > 0 && (
           <p className="text-center text-xs text-muted-foreground py-6">
