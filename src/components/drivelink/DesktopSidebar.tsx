@@ -1,12 +1,14 @@
 import { useStore, type ViewType } from "@/store";
 import { motion } from "framer-motion";
+import { Home, MessageCircle, Newspaper, Cloud, HelpCircle, UserCircle } from "lucide-react";
 
-const tabs: { id: ViewType; icon: string; label: string; activeColor: string }[] = [
-  { id: "home", icon: "🏠", label: "Drive", activeColor: "text-primary" },
-  { id: "dm", icon: "💬", label: "Chat", activeColor: "text-success" },
-  { id: "news", icon: "📰", label: "News", activeColor: "text-warning" },
-  { id: "weather", icon: "🌤", label: "Weather", activeColor: "text-secondary" },
-  { id: "help", icon: "🆘", label: "Help", activeColor: "text-purple" },
+const tabs: { id: ViewType; icon: React.ReactNode; label: string }[] = [
+  { id: "home", icon: <Home size={18} />, label: "Drive" },
+  { id: "dm", icon: <MessageCircle size={18} />, label: "Chat" },
+  { id: "news", icon: <Newspaper size={18} />, label: "News" },
+  { id: "weather", icon: <Cloud size={18} />, label: "Weather" },
+  { id: "help", icon: <HelpCircle size={18} />, label: "Help" },
+  { id: "profile", icon: <UserCircle size={18} />, label: "Profile" },
 ];
 
 export function DesktopSidebar() {
@@ -37,11 +39,18 @@ export function DesktopSidebar() {
               onClick={() => setView(tab.id)}
               className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 border-none w-full text-left cursor-pointer ${
                 isActive
-                  ? `bg-foreground/10 ${tab.activeColor}`
+                  ? "bg-primary/10 text-primary"
                   : "text-foreground/50 hover:text-foreground/80 hover:bg-foreground/5"
               }`}
             >
-              <span className="text-lg">{tab.icon}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="sidebarIndicator"
+                  className="absolute left-0 w-[3px] h-5 rounded-r-full bg-primary"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              {tab.icon}
               <span className="font-display text-sm font-medium tracking-wider uppercase">{tab.label}</span>
 
               {tab.id === "dm" && hasDmNotif && (

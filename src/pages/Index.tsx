@@ -62,6 +62,7 @@ const Index = () => {
           {activeView === "news" && <NewsView />}
           {activeView === "weather" && <WeatherView />}
           {activeView === "help" && <HelpView />}
+          {activeView === "profile" && <ProfileView />}
         </div>
 
         {/* Bottom nav — mobile only */}
