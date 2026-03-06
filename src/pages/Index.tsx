@@ -16,6 +16,7 @@ import { MessagesView } from "@/components/drivelink/MessagesView";
 import { NewsView } from "@/components/drivelink/NewsView";
 import { WeatherView } from "@/components/drivelink/WeatherView";
 import { HelpView } from "@/components/drivelink/HelpView";
+import { ProfileView } from "@/components/drivelink/ProfileView";
 import { useEffect } from "react";
 
 const Index = () => {
@@ -61,6 +62,7 @@ const Index = () => {
           {activeView === "news" && <NewsView />}
           {activeView === "weather" && <WeatherView />}
           {activeView === "help" && <HelpView />}
+          {activeView === "profile" && <ProfileView />}
         </div>
 
         {/* Bottom nav — mobile only */}

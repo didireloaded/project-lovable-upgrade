@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
 export type ReportType = 'police' | 'accident' | 'hazard' | 'traffic' | 'pothole'
-export type ViewType = 'home' | 'dm' | 'news' | 'weather' | 'help'
+export type ViewType = 'home' | 'dm' | 'news' | 'weather' | 'help' | 'profile'
 export type Rank = 'Bronze' | 'Silver' | 'Gold' | 'Platinum'
 
 export interface AppNotification {
